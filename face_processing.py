@@ -1,9 +1,16 @@
+from dataclasses import dataclass
 from typing import Dict, Iterable, List, Optional, Tuple
 
 import cv2
 import numpy as np
 
 from constants import LEFT_EYE_INDICES, RIGHT_EYE_INDICES
+
+
+@dataclass
+class FacePartData:
+    image: np.ndarray
+    center: Tuple[int, int]
 
 
 def calculate_eye_aspect_ratio(landmarks: List[List[float]], eye_indices: Iterable[int]) -> float:
@@ -87,7 +94,7 @@ def crop_face_part(
     frame_width: int,
     frame_height: int,
     part_type: str,
-) -> Optional[np.ndarray]:
+) -> Optional[FacePartData]:
     """Potong (crop) area wajah berdasarkan tipe bagian (left_eye, right_eye, dll).
 
     - Mengembalikan crop image (copy) dari frame atau None jika part_type tidak dikenali.
@@ -126,8 +133,10 @@ def crop_face_part(
     width = min(frame_width - x, width + padding * 2)
     height = min(frame_height - y, height + padding * 2)
 
-    # Kembalikan salinan area crop untuk menghindari referensi ke frame asli
-    return frame[y : y + height, x : x + width].copy()
+    cropped = frame[y : y + height, x : x + width].copy()
+    center = (x + width // 2, y + height // 2)
+
+    return FacePartData(image=cropped, center=center)
 
 
 def get_nose_position(landmarks: List[List[float]], frame_width: int, frame_height: int) -> Tuple[int, int]:
