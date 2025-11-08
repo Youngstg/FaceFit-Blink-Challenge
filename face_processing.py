@@ -94,6 +94,8 @@ def crop_face_part(
     frame_width: int,
     frame_height: int,
     part_type: str,
+    mask_style: str = "rectangle",
+    with_alpha: bool = False,
 ) -> Optional[FacePartData]:
     """Potong (crop) area wajah berdasarkan tipe bagian (left_eye, right_eye, dll).
 
@@ -117,12 +119,12 @@ def crop_face_part(
         return None
 
     # Hitung koordinat titik polygon dalam pixel
-    points = np.array(
-        [
-            (int(landmarks[i][0] * frame_width), int(landmarks[i][1] * frame_height))
-            for i in indices
-        ]
-    )
+    raw_points = [
+        (int(landmarks[i][0] * frame_width), int(landmarks[i][1] * frame_height))
+        for i in indices
+    ]
+    points = np.array(raw_points)
+
     # Dapatkan bounding rectangle (x, y, w, h)
     x, y, width, height = cv2.boundingRect(points)
 
@@ -133,7 +135,66 @@ def crop_face_part(
     width = min(frame_width - x, width + padding * 2)
     height = min(frame_height - y, height + padding * 2)
 
-    cropped = frame[y : y + height, x : x + width].copy()
+    # Buat ROI (region of interest) dari frame asli
+    roi = frame[y : y + height, x : x + width]
+
+    # Siapkan mask kosong sesuai ROI
+    mask = np.zeros((height, width), dtype=np.uint8)
+
+    # Transform points ke koordinat relatif ROI
+    roi_points = points - np.array([[x, y]])
+
+    mask_style = mask_style.lower()
+    if mask_style not in {"rectangle", "ellipse", "polygon"}:
+        mask_style = "rectangle"
+
+    if mask_style == "rectangle":
+        # Isi seluruh mask (hasil sama seperti crop lama)
+        mask[:] = 255
+    elif mask_style == "polygon":
+        # Gunakan polygon sesuai urutan indeks agar mengikuti kontur asli
+        try:
+            cv2.fillPoly(mask, [roi_points.astype(np.int32)], 255)
+        except Exception:
+            # Fallback ke convex hull jika urutan polygon tidak valid
+            hull = cv2.convexHull(roi_points)
+            cv2.fillPoly(mask, [hull], 255)
+    elif mask_style == "ellipse":
+        # Coba fit ellipse ke titik (membutuhkan > 4 titik)
+        if len(roi_points) >= 5:
+            ellipse = cv2.fitEllipse(roi_points)
+            cv2.ellipse(mask, ellipse, 255, -1)
+        else:
+            # Fallback ke ellipse dari bounding box
+            cv2.ellipse(
+                mask,
+                (width // 2, height // 2),
+                (width // 2, height // 2),
+                0,
+                0,
+                360,
+                255,
+                -1,
+            )
+
+    # Terapkan mask ke ROI
+    if with_alpha:
+        # Buat output 4 channel (BGRA)
+        bgr = roi.copy()
+        # Pastikan ROI punya 3 channel
+        if bgr.ndim == 2:
+            bgr = cv2.cvtColor(bgr, cv2.COLOR_GRAY2BGR)
+        alpha = mask
+        # Tumpulkan (feather) pinggir mask sedikit agar lebih natural
+        alpha = cv2.GaussianBlur(alpha, (7, 7), 0)
+        bgra = cv2.cvtColor(bgr, cv2.COLOR_BGR2BGRA)
+        bgra[:, :, 3] = alpha
+        cropped = bgra
+    else:
+        # Zero-out area di luar mask (buat tampilan tidak kotak walau dalam rectangle)
+        masked_roi = cv2.bitwise_and(roi, roi, mask=mask)
+        cropped = masked_roi.copy()
+
     center = (x + width // 2, y + height // 2)
 
     return FacePartData(image=cropped, center=center)

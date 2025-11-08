@@ -126,20 +126,30 @@ class FallingFacePart:
             return  # Posisi keluar batas bawah/kanan
 
         # === TEMPELKAN GAMBAR ===
-        # Ambil area di frame tempat gambar akan ditempel (Region of Interest)
-        roi = frame[y : y + self.height, x : x + self.width]
-        
-        # Cek apakah ukuran ROI sama dengan ukuran gambar
-        if roi.shape[:2] != self.image.shape[:2]:
-            return  # Ukuran tidak cocok, skip
+        # Jika gambar punya alpha channel, lakukan alpha compositing manual
+        if self.image.shape[2] == 4:
+            overlay = self.image
+            alpha = overlay[:, :, 3] / 255.0
+            alpha_inv = 1.0 - alpha
+            roi = frame[y : y + self.height, x : x + self.width]
+            if roi.shape[:2] != overlay.shape[:2]:
+                return
+            for c in range(3):
+                roi[:, :, c] = (alpha * overlay[:, :, c] + alpha_inv * roi[:, :, c]).astype(np.uint8)
+            frame[y : y + self.height, x : x + self.width] = roi
+        else:
+            # Ambil area di frame tempat gambar akan ditempel (Region of Interest)
+            roi = frame[y : y + self.height, x : x + self.width]
 
-        # Tempelkan gambar dengan blending (campuran):
-        # - 10% dari frame asli (biar transparan sedikit)
-        # - 90% dari gambar bagian wajah (biar kelihatan jelas)
-        frame[y : y + self.height, x : x + self.width] = cv2.addWeighted(
-            roi,           # Frame asli
-            0.1,           # 10% frame asli
-            self.image,    # Gambar bagian wajah
-            0.9,           # 90% gambar bagian wajah
-            0,             # Gamma correction (tidak dipakai)
-        )
+            # Cek apakah ukuran ROI sama dengan ukuran gambar
+            if roi.shape[:2] != self.image.shape[:2]:
+                return  # Ukuran tidak cocok, skip
+
+            # Blending ringan supaya terlihat integrasi dengan frame
+            frame[y : y + self.height, x : x + self.width] = cv2.addWeighted(
+                roi,        # Frame asli
+                0.2,        # Sedikit lebih banyak frame agar tidak terlalu mencolok
+                self.image, # Gambar bagian wajah
+                0.8,        # Dominan gambar bagian wajah
+                0,          # Gamma correction
+            )

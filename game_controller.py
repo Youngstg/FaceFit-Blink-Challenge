@@ -10,6 +10,11 @@ from constants import (
     FACE_PART_SEQUENCE,
     STATE_CAPTURE,
     STATE_PLAYING,
+    EAR_DYNAMIC_ENABLED,
+    EAR_DYNAMIC_SAMPLES,
+    EAR_DYNAMIC_FACTOR,
+    EAR_MIN_THRESHOLD,
+    EAR_HYSTERESIS,
 )
 from falling_face_part import FallingFacePart
 from face_processing import FacePartData, apply_face_mask, calculate_average_ear, crop_face_part, get_nose_position
@@ -23,6 +28,10 @@ class FaceFilterGame:
         self._face_mesh_solution = mp.solutions.face_mesh  # Inisialisasi MediaPipe Face Mesh
         self._part_sequence: Sequence[str] = FACE_PART_SEQUENCE  # Urutan bagian wajah yang akan dijatuhkan
         self.reset_state()  # Set state awal game
+        # Variabel kalibrasi EAR dinamis
+        self._ear_samples = []  # type: List[float]
+        self._ear_threshold = EAR_THRESHOLD
+        self._ear_state_closed = False  # untuk hysteresis buka/tutup
 
     def run(self) -> None:
         """Fungsi utama untuk menjalankan game."""
@@ -82,6 +91,9 @@ class FaceFilterGame:
         self.last_countdown_time = cv2.getTickCount()  # Waktu terakhir countdown
         self.blink_count = 0  # Hitung jumlah kedipan yang terdeteksi
         self._blink_active = False  # Flag untuk mencegah double count kedipan yang sama
+        self._ear_samples = []
+        self._ear_threshold = EAR_THRESHOLD
+        self._ear_state_closed = False
 
     def _process_capture_state(
         self,
@@ -101,10 +113,33 @@ class FaceFilterGame:
                 self.capture_countdown -= 1
                 self.last_countdown_time = current_time
 
-            # Jika countdown belum selesai, tampilkan prompt
+            # Selama countdown, kumpulkan sampel EAR untuk kalibrasi jika diaktifkan
+            if EAR_DYNAMIC_ENABLED and results and results.multi_face_landmarks:
+                for face_landmarks in results.multi_face_landmarks:
+                    landmarks = [[lm.x, lm.y] for lm in face_landmarks.landmark]
+                    ear_sample = calculate_average_ear(landmarks)
+                    if len(self._ear_samples) < EAR_DYNAMIC_SAMPLES:
+                        self._ear_samples.append(ear_sample)
+
+            # Jika countdown belum selesai, tampilkan prompt & progress sampel
             if self.capture_countdown > 0:
-                self._draw_capture_prompt(frame, frame_width, frame_height, self.capture_countdown)
+                self._draw_capture_prompt(
+                    frame,
+                    frame_width,
+                    frame_height,
+                    self.capture_countdown,
+                    len(self._ear_samples),
+                    EAR_DYNAMIC_SAMPLES,
+                )
                 return
+
+            # Kalibrasi ambang EAR setelah countdown selesai (sekali saja)
+            if EAR_DYNAMIC_ENABLED and self._ear_samples:
+                # Gunakan median untuk robust terhadap noise
+                baseline = float(np.median(self._ear_samples))
+                calibrated = max(EAR_MIN_THRESHOLD, baseline * EAR_DYNAMIC_FACTOR)
+                self._ear_threshold = calibrated
+                print(f"EAR baseline: {baseline:.4f} -> threshold kalibrasi: {self._ear_threshold:.4f}")
 
             # Countdown selesai, capture bagian wajah
             self.face_parts.clear()
@@ -152,15 +187,29 @@ class FaceFilterGame:
 
                 # Hitung Eye Aspect Ratio untuk deteksi kedipan
                 avg_ear = calculate_average_ear(landmarks)
-                if avg_ear < EAR_THRESHOLD:  # Jika mata tertutup (kedip)
-                    blink_display = True
-                    if not self._blink_active:
-                        self._blink_active = True
-                        self.blink_count += 1
-                        blink_event = True
-                        print(f"Blink terdeteksi: {self.blink_count}")
+                threshold = self._ear_threshold
+                # Hysteresis: dua ambang - tutup & buka
+                close_level = threshold
+                open_level = threshold + EAR_HYSTERESIS
+                if not self._ear_state_closed:
+                    # Mata dianggap menutup ketika turun di bawah close_level
+                    if avg_ear < close_level:
+                        self._ear_state_closed = True
+                        blink_display = True
+                        if not self._blink_active:
+                            self._blink_active = True
+                            self.blink_count += 1
+                            blink_event = True
+                            print(f"Blink terdeteksi (EAR={avg_ear:.3f} < {close_level:.3f}): {self.blink_count}")
+                    else:
+                        self._blink_active = False
                 else:
-                    self._blink_active = False
+                    # Mata dianggap kembali terbuka ketika EAR naik di atas open_level
+                    if avg_ear > open_level:
+                        self._ear_state_closed = False
+                        self._blink_active = False
+                    else:
+                        blink_display = True
         else:
             self._blink_active = False
 
@@ -174,6 +223,16 @@ class FaceFilterGame:
                 (0, 255, 0),
                 2,
             )
+        # Tampilkan ambang EAR terkini untuk debugging kecil
+        cv2.putText(
+            frame,
+            f"EAR th={self._ear_threshold:.2f}",
+            (frame_width - 170, 80),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.5,
+            (255, 255, 0),
+            1,
+        )
 
         # Update posisi semua objek yang sudah ditempel agar mengikuti wajah
         if current_nose_pos:
@@ -215,7 +274,16 @@ class FaceFilterGame:
         """Capture semua bagian wajah sesuai urutan yang ditentukan."""
         for part_type in self._part_sequence:
             # Crop setiap bagian wajah dan simpan ke dictionary
-            part_data = crop_face_part(frame, landmarks, frame_width, frame_height, part_type)
+            # Gunakan mask polygon + alpha agar mengikuti kontur (tidak kotak)
+            part_data = crop_face_part(
+                frame,
+                landmarks,
+                frame_width,
+                frame_height,
+                part_type,
+                mask_style="polygon",
+                with_alpha=True,
+            )
             if part_data is not None:
                 self.face_parts[part_type] = part_data
 
@@ -255,6 +323,8 @@ class FaceFilterGame:
         frame_width: int,
         frame_height: int,
         remaining_seconds: int,
+        ear_collected: int,
+        ear_target: int,
     ) -> None:
         """Tampilkan countdown dan instruksi sebelum capture."""
         cv2.putText(
@@ -273,6 +343,15 @@ class FaceFilterGame:
             cv2.FONT_HERSHEY_SIMPLEX,
             0.8,
             (255, 255, 255),
+            2,
+        )
+        cv2.putText(
+            frame,
+            f"Kalibrasi EAR: {ear_collected}/{ear_target}",
+            (frame_width // 2 - 160, frame_height // 2 + 90),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.6,
+            (200, 255, 200),
             2,
         )
 
