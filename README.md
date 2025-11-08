@@ -7,7 +7,7 @@ Game interaktif yang memanfaatkan kamera web dan MediaPipe Face Mesh untuk menam
 3. Eric Arwido Damanik (122140157)
 
 # Logbook Mingguan Kerkom
-![Logbook](Logbook_img/Gambar WhatsApp 2025-11-08 pukul 18.30.08_9a69618e.jpg)
+![Logbook](Logbook_img/Gambar%20WhatsApp%202025-11-08%20pukul%2018.30.08_9a69618e.jpg)
 Memperbaiki Error pada kedipan dan wajah yang tidak mau turun semua 
 
 ## Persyaratan
