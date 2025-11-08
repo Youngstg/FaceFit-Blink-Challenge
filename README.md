@@ -1,6 +1,15 @@
 # FaceFit-Blink-Challenge
 Game interaktif yang memanfaatkan kamera web dan MediaPipe Face Mesh untuk menampilkan bagian wajah alis, mata, hidung, mulut yang jatuh dari atas layar. Pemain harus mengedipkan mata tepat waktu agar bagian yang jatuh berhenti dan menempel di posisi wajah yang sesuai, sampai wajah tersusun lengkap secara real time.
 
+# Nama dan NIM 
+1. Lucky Immanuel Sitanggang (122140179)
+2. Rachel Olivia Manullang (122140181)
+3. Eric Arwido Damanik (122140157)
+
+# Logbook Mingguan Kerkom
+![Logbook](Logbook_img/Gambar WhatsApp 2025-11-08 pukul 18.30.08_9a69618e.jpg)
+Memperbaiki Error pada kedipan dan wajah yang tidak mau turun semua 
+
 ## Persyaratan
 - Python 3.11 (disarankan; versi 3.12 memiliki konflik dependensi antara MediaPipe dan TensorFlow/protobuf)
 - Kamera web aktif
