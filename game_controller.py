@@ -12,7 +12,7 @@ from constants import (
     STATE_PLAYING,
 )
 from falling_face_part import FallingFacePart
-from face_processing import apply_face_mask, calculate_average_ear, crop_face_part, get_nose_position
+from face_processing import FacePartData, apply_face_mask, calculate_average_ear, crop_face_part, get_nose_position
 
 
 class FaceFilterGame:
@@ -74,12 +74,14 @@ class FaceFilterGame:
     def reset_state(self) -> None:
         """Reset semua state game ke kondisi awal."""
         self.current_state = STATE_CAPTURE  # Mulai dari state capture
-        self.face_parts: Dict[str, np.ndarray] = {}  # Dictionary untuk menyimpan gambar bagian wajah
+        self.face_parts: Dict[str, FacePartData] = {}  # Simpan gambar + koordinat target bagian wajah
         self.falling_objects: List[FallingFacePart] = []  # List objek yang sedang jatuh
         self.placed_objects: List[FallingFacePart] = []  # List objek yang sudah ditangkap/ditempel
         self.current_part_index = 0  # Index bagian wajah yang sedang aktif
         self.capture_countdown = CAPTURE_COUNTDOWN  # Countdown sebelum capture
         self.last_countdown_time = cv2.getTickCount()  # Waktu terakhir countdown
+        self.blink_count = 0  # Hitung jumlah kedipan yang terdeteksi
+        self._blink_active = False  # Flag untuk mencegah double count kedipan yang sama
 
     def _process_capture_state(
         self,
@@ -134,7 +136,8 @@ class FaceFilterGame:
         frame_height: int,
     ) -> None:
         """Proses state playing: deteksi kedipan, update objek jatuh, dan tracking wajah."""
-        blink_detected = False  # Flag untuk deteksi kedipan
+        blink_event = False  # Trigger satu kali ketika kedipan baru terdeteksi
+        blink_display = False  # Menandakan mata sedang tertutup untuk tampilan teks
         current_nose_pos: Optional[Tuple[int, int]] = None  # Posisi hidung saat ini
 
         # Jika wajah terdeteksi
@@ -150,16 +153,27 @@ class FaceFilterGame:
                 # Hitung Eye Aspect Ratio untuk deteksi kedipan
                 avg_ear = calculate_average_ear(landmarks)
                 if avg_ear < EAR_THRESHOLD:  # Jika mata tertutup (kedip)
-                    blink_detected = True
-                    cv2.putText(
-                        frame,
-                        "BLINK!",
-                        (frame_width - 150, 50),
-                        cv2.FONT_HERSHEY_SIMPLEX,
-                        1,
-                        (0, 255, 0),
-                        2,
-                    )
+                    blink_display = True
+                    if not self._blink_active:
+                        self._blink_active = True
+                        self.blink_count += 1
+                        blink_event = True
+                        print(f"Blink terdeteksi: {self.blink_count}")
+                else:
+                    self._blink_active = False
+        else:
+            self._blink_active = False
+
+        if blink_display:
+            cv2.putText(
+                frame,
+                "BLINK!",
+                (frame_width - 150, 50),
+                cv2.FONT_HERSHEY_SIMPLEX,
+                1,
+                (0, 255, 0),
+                2,
+            )
 
         # Update posisi semua objek yang sudah ditempel agar mengikuti wajah
         if current_nose_pos:
@@ -171,8 +185,8 @@ class FaceFilterGame:
         if current_falling_obj:
             current_falling_obj.update()  # Update posisi (jatuh ke bawah)
 
-            # Jika kedipan terdeteksi, hentikan objek dan tempel ke wajah
-            if blink_detected and current_nose_pos:
+            # Jika ada kedipan baru, hentikan objek dan tempel ke wajah
+            if blink_event and current_nose_pos:
                 current_falling_obj.stop(current_falling_obj.x, current_falling_obj.y, current_nose_pos)
                 self.placed_objects.append(current_falling_obj)  # Pindahkan ke list placed
                 self.current_part_index += 1  # Lanjut ke bagian wajah berikutnya
@@ -180,7 +194,7 @@ class FaceFilterGame:
 
             # Jika objek jatuh keluar layar, reset posisinya ke atas
             if current_falling_obj.y > frame_height + 100:
-                current_falling_obj.reset_start_position(frame_width)
+                current_falling_obj.reset_start_position()
 
         # Gambar semua objek (yang sudah ditempel dan yang sedang jatuh)
         for obj in self.placed_objects:
@@ -201,9 +215,9 @@ class FaceFilterGame:
         """Capture semua bagian wajah sesuai urutan yang ditentukan."""
         for part_type in self._part_sequence:
             # Crop setiap bagian wajah dan simpan ke dictionary
-            cropped = crop_face_part(frame, landmarks, frame_width, frame_height, part_type)
-            if cropped is not None:
-                self.face_parts[part_type] = cropped
+            part_data = crop_face_part(frame, landmarks, frame_width, frame_height, part_type)
+            if part_data is not None:
+                self.face_parts[part_type] = part_data
 
     def _spawn_next_falling_object(self, frame_width: int, frame_height: int) -> None:
         """Spawn objek jatuh berikutnya dari bagian wajah yang sudah dicapture."""
@@ -213,12 +227,20 @@ class FaceFilterGame:
 
         # Ambil jenis bagian wajah berikutnya
         part_type = self._part_sequence[self.current_part_index]
-        part_image = self.face_parts.get(part_type)
-        if part_image is None:
+        part_data = self.face_parts.get(part_type)
+        if part_data is None:
             return
 
         # Buat objek FallingFacePart baru dan tambahkan ke list
-        self.falling_objects.append(FallingFacePart(part_image, part_type, frame_width, frame_height))
+        self.falling_objects.append(
+            FallingFacePart(
+                part_data.image,
+                part_type,
+                frame_width,
+                frame_height,
+                spawn_x=part_data.center[0],
+            )
+        )
 
     def _get_current_falling_object(self) -> Optional[FallingFacePart]:
         """Dapatkan objek yang sedang dalam status jatuh (belum ditangkap)."""
