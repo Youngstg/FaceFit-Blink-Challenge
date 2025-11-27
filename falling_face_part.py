@@ -14,7 +14,7 @@ class FallingFacePart:
     Bagian wajah ini bisa ditempelkan kembali ke wajah dan mengikuti pergerakan kepala.
     """
 
-    def __init__(
+    def _init_(
         self,
         part_data: FacePartData,
         part_type: str,
@@ -34,6 +34,7 @@ class FallingFacePart:
         self._base_size = (self.width, self.height)
         self._current_scale = 1.0
         self._angle_smoothed = 0.0
+        self._lock_frames = 0  # tahan update agar tidak lompat tepat setelah stop
         
         # === POSISI SPAWN (MUNCULNYA) ===
         # Tentukan batas kiri-kanan agar tidak terlalu pinggir
@@ -95,6 +96,7 @@ class FallingFacePart:
         self.is_falling = False
         self.x, self.y = target_center
         # Saat menempel, jadikan pusat sekarang sebagai referensi anchor baru
+        self._lock_frames = 2  # tahan 2 frame pertama agar tidak lompat
 
     def reanchor_to_current_landmarks(
         self,
@@ -109,6 +111,7 @@ class FallingFacePart:
         reanchor_part_data(self.part_data, landmarks, frame_width, frame_height, center)
         # Reset smoothing angle ke 0 agar delta selanjutnya diukur dari referensi baru
         self._angle_smoothed = 0.0
+        self._lock_frames = 0
 
     def update_position_from_landmarks(
         self,
@@ -122,16 +125,25 @@ class FallingFacePart:
         """
         if self.is_falling:
             return
+        if self._lock_frames > 0:
+            self._lock_frames -= 1
+            return
         result = compute_aligned_center(
             self.part_data, landmarks, frame_width, frame_height
         )
         if result:
             (cx, cy), scale, angle_diff, mid = result
-            # Smooth scale dan sudut untuk mengurangi jitter
-            alpha_scale = 0.2
-            smoothed_scale = self._current_scale * (1 - alpha_scale) + float(scale) * alpha_scale
+            # Smooth scale/sudut/posisi; hidung dibuat lebih responsif (alpha lebih besar)
+            if self.part_type == "nose":
+                alpha_scale = 0.6
+                alpha_angle = 0.6
+                alpha_pos = 0.6
+            else:
+                alpha_scale = 0.35
+                alpha_angle = 0.35
+                alpha_pos = 0.35
 
-            alpha_angle = 0.2
+            smoothed_scale = self._current_scale * (1 - alpha_scale) + float(scale) * alpha_scale
             self._angle_smoothed = self._angle_smoothed * (1 - alpha_angle) + float(angle_diff) * alpha_angle
 
             # Hitung ulang center dengan sudut yang dismoothing
@@ -143,7 +155,6 @@ class FallingFacePart:
             new_center = np.array([mid[0], mid[1]], dtype=np.float32) + new_offset
 
             # Smooth posisi juga
-            alpha_pos = 0.2
             smoothed_x = self.x * (1 - alpha_pos) + float(new_center[0]) * alpha_pos
             smoothed_y = self.y * (1 - alpha_pos) + float(new_center[1]) * alpha_pos
 
