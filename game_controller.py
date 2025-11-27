@@ -30,8 +30,20 @@ from face_processing import (
 class FaceFilterGame:
     """Main loop pengelolaan permainan Face Filter Blink Challenge."""
 
-    def _init_(self, camera_index: int = 0) -> None:
-        self.camera_index = camera_index  # Index kamera yang digunakan (default 0 = webcam)
+    def __init__(self, camera_index: int = 0):
+        """Initialize the game with camera index"""
+        self.camera_index = camera_index
+        
+        # Initialize video capture
+        self.cap = cv2.VideoCapture(self.camera_index)
+        if not self.cap.isOpened():
+            raise RuntimeError(f"Cannot open camera index {self.camera_index}")
+        
+        # Set camera properties for better performance
+        self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
+        self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
+        self.cap.set(cv2.CAP_PROP_FPS, 30)
+
         self._face_mesh_solution = mp.solutions.face_mesh  # Inisialisasi MediaPipe Face Mesh
         self._part_sequence: Sequence[str] = FACE_PART_SEQUENCE  # Urutan bagian wajah yang akan dijatuhkan
         self.reset_state()  # Set state awal game
@@ -412,3 +424,9 @@ class FaceFilterGame:
                 (0, 255, 255),
                 2,
             )
+
+    def __del__(self):
+        """Cleanup resources"""
+        if hasattr(self, 'cap') and self.cap is not None:
+            self.cap.release()
+        cv2.destroyAllWindows()
