@@ -30,7 +30,7 @@ from face_processing import (
 class FaceFilterGame:
     """Main loop pengelolaan permainan Face Filter Blink Challenge."""
 
-    def __init__(self, camera_index: int = 0) -> None:
+    def _init_(self, camera_index: int = 0) -> None:
         self.camera_index = camera_index  # Index kamera yang digunakan (default 0 = webcam)
         self._face_mesh_solution = mp.solutions.face_mesh  # Inisialisasi MediaPipe Face Mesh
         self._part_sequence: Sequence[str] = FACE_PART_SEQUENCE  # Urutan bagian wajah yang akan dijatuhkan

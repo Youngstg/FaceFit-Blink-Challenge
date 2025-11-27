@@ -14,7 +14,7 @@ class FallingFacePart:
     Bagian wajah ini bisa ditempelkan kembali ke wajah dan mengikuti pergerakan kepala.
     """
 
-    def __init__(
+    def _init_(
         self,
         part_data: FacePartData,
         part_type: str,
