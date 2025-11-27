@@ -17,7 +17,14 @@ from constants import (
     EAR_HYSTERESIS,
 )
 from falling_face_part import FallingFacePart
-from face_processing import FacePartData, apply_face_mask, calculate_average_ear, crop_face_part, get_nose_position
+from face_processing import (
+    FacePartData,
+    apply_face_mask,
+    calculate_average_ear,
+    compute_aligned_center,
+    reanchor_part_data,
+    crop_face_part,
+)
 
 
 class FaceFilterGame:
@@ -94,6 +101,7 @@ class FaceFilterGame:
         self._ear_samples = []
         self._ear_threshold = EAR_THRESHOLD
         self._ear_state_closed = False
+        self._last_landmarks: Optional[List[List[float]]] = None
 
     def _process_capture_state(
         self,
@@ -173,17 +181,15 @@ class FaceFilterGame:
         """Proses state playing: deteksi kedipan, update objek jatuh, dan tracking wajah."""
         blink_event = False  # Trigger satu kali ketika kedipan baru terdeteksi
         blink_display = False  # Menandakan mata sedang tertutup untuk tampilan teks
-        current_nose_pos: Optional[Tuple[int, int]] = None  # Posisi hidung saat ini
 
         # Jika wajah terdeteksi
         if results and results.multi_face_landmarks:
             for face_landmarks in results.multi_face_landmarks:
                 landmarks = [[lm.x, lm.y] for lm in face_landmarks.landmark]
+                self._last_landmarks = landmarks
                 
                 # Terapkan mask wajah (blur area di luar wajah)
                 apply_face_mask(frame, landmarks, frame_width, frame_height)
-                # Dapatkan posisi hidung untuk tracking
-                current_nose_pos = get_nose_position(landmarks, frame_width, frame_height)
 
                 # Hitung Eye Aspect Ratio untuk deteksi kedipan
                 avg_ear = calculate_average_ear(landmarks)
@@ -212,6 +218,7 @@ class FaceFilterGame:
                         blink_display = True
         else:
             self._blink_active = False
+            self._last_landmarks = None
 
         if blink_display:
             cv2.putText(
@@ -235,9 +242,9 @@ class FaceFilterGame:
         )
 
         # Update posisi semua objek yang sudah ditempel agar mengikuti wajah
-        if current_nose_pos:
+        if self._last_landmarks:
             for obj in self.placed_objects:
-                obj.update_position_from_tracking(current_nose_pos)
+                obj.update_position_from_landmarks(self._last_landmarks, frame_width, frame_height)
 
         # Dapatkan objek yang sedang jatuh saat ini
         current_falling_obj = self._get_current_falling_object()
@@ -245,8 +252,15 @@ class FaceFilterGame:
             current_falling_obj.update()  # Update posisi (jatuh ke bawah)
 
             # Jika ada kedipan baru, hentikan objek dan tempel ke wajah
-            if blink_event and current_nose_pos:
-                current_falling_obj.stop(current_falling_obj.x, current_falling_obj.y, current_nose_pos)
+            if blink_event and self._last_landmarks:
+                # Tempel di posisi jatuh saat ini (tidak di-snap ke anchor)
+                target_center = (int(current_falling_obj.x), int(current_falling_obj.y))
+                current_falling_obj.apply_scale(1.0)
+                current_falling_obj.stop(target_center)
+                # Set ulang anchor referensi ke pose wajah sekarang agar tracking skala/rotasi mengikuti
+                current_falling_obj.reanchor_to_current_landmarks(
+                    self._last_landmarks, frame_width, frame_height
+                )
                 self.placed_objects.append(current_falling_obj)  # Pindahkan ke list placed
                 self.current_part_index += 1  # Lanjut ke bagian wajah berikutnya
                 self._spawn_next_falling_object(frame_width, frame_height)  # Spawn objek baru
@@ -302,7 +316,7 @@ class FaceFilterGame:
         # Buat objek FallingFacePart baru dan tambahkan ke list
         self.falling_objects.append(
             FallingFacePart(
-                part_data.image,
+                part_data,
                 part_type,
                 frame_width,
                 frame_height,

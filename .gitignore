@@ -6,6 +6,8 @@ __pycache__/
 # Virtual environments
 .venv/
 venv/
+.tubes-venv/
+tubes-venv/
 
 # VS Code settings
 .vscode/
@@ -13,3 +15,4 @@ venv/
 # OS / misc
 .DS_Store
 Thumbs.db
+.gitignore

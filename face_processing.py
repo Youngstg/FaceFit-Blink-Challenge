@@ -1,3 +1,4 @@
+import math
 from dataclasses import dataclass
 from typing import Dict, Iterable, List, Optional, Tuple
 
@@ -21,11 +22,25 @@ INNER_LIP_RING = [
 # Outer lips: ambil semua indeks unik dari FACEMESH_LIPS
 LIPS_IDX = sorted({i for e in FACEMESH_LIPS for i in e})
 
+ANCHOR_MAP: Dict[str, Tuple[int, int]] = {
+    "left_eye": (33, 133),          # sudut mata kiri
+    "right_eye": (362, 263),        # sudut mata kanan
+    "left_eyebrow": (46, 52),       # ujung alis kiri
+    "right_eyebrow": (282, 295),    # ujung alis kanan
+    "nose": (98, 327),              # sayap hidung kiri/kanan
+    "mouth": (78, 308),             # sudut bibir kiri/kanan
+}
+
 
 @dataclass
 class FacePartData:
     image: np.ndarray
     center: Tuple[int, int]
+    anchor_indices: Tuple[int, int]
+    base_anchor_mid: Tuple[float, float]
+    base_anchor_dist: float
+    base_anchor_angle: float
+    offset_from_anchor: Tuple[float, float]
 
 
 def _px_points(landmarks: List[List[float]], indices: Iterable[int], W: int, H: int) -> np.ndarray:
@@ -35,6 +50,147 @@ def _px_points(landmarks: List[List[float]], indices: Iterable[int], W: int, H: 
         for i in indices
     ]
     return np.array(pts, dtype=np.int32)
+
+
+def _compute_anchor_data(
+    part_type: str,
+    landmarks: List[List[float]],
+    frame_width: int,
+    frame_height: int,
+    center: Tuple[int, int],
+) -> Tuple[Tuple[int, int], Tuple[float, float], float, float, Tuple[float, float]]:
+    """
+    Hitung data jangkar (dua titik) untuk bagian wajah:
+    - anchor_indices: pasangan indeks yang digunakan
+    - mid: titik tengah anchor di piksel
+    - dist: jarak anchor (untuk skala)
+    - angle: sudut anchor (untuk rotasi)
+    - offset_from_anchor: vektor center relatif ke mid
+    """
+    anchor_indices = ANCHOR_MAP.get(part_type)
+    if not anchor_indices:
+        return (), (float(center[0]), float(center[1])), 1.0, 0.0, (0.0, 0.0)
+
+    pts = _px_points(landmarks, anchor_indices, frame_width, frame_height)
+    if len(pts) < 2:
+        return (), (float(center[0]), float(center[1])), 1.0, 0.0, (0.0, 0.0)
+
+    p1, p2 = pts[0], pts[1]
+    vec = np.array(p2, dtype=np.float32) - np.array(p1, dtype=np.float32)
+    dist = float(np.linalg.norm(vec))
+    if dist < 1e-3:
+        dist = 1.0
+    angle = float(math.atan2(vec[1], vec[0]))
+    mid = (float((p1[0] + p2[0]) * 0.5), float((p1[1] + p2[1]) * 0.5))
+    offset = (float(center[0] - mid[0]), float(center[1] - mid[1]))
+    return anchor_indices, mid, dist, angle, offset
+
+
+def compute_aligned_center(
+    part_data: FacePartData,
+    landmarks: List[List[float]],
+    frame_width: int,
+    frame_height: int,
+) -> Optional[Tuple[Tuple[int, int], float, float, Tuple[float, float]]]:
+    """
+    Hitung transform anchor saat ini:
+    - center (dengan rotasi & skala diterapkan)
+    - scale (rasio jarak anchor sekarang vs base)
+    - angle_diff (beda sudut anchor sekarang vs base)
+    - mid (titik tengah anchor sekarang)
+    """
+    if not part_data.anchor_indices or part_data.base_anchor_dist <= 0.0:
+        return None
+
+    pts = _px_points(landmarks, part_data.anchor_indices, frame_width, frame_height)
+    if len(pts) < 2:
+        return None
+
+    p1, p2 = pts[0], pts[1]
+    vec = np.array(p2, dtype=np.float32) - np.array(p1, dtype=np.float32)
+    dist = float(np.linalg.norm(vec))
+    if dist < 1e-3:
+        return None
+    angle = float(math.atan2(vec[1], vec[0]))
+    mid = np.array([(p1[0] + p2[0]) * 0.5, (p1[1] + p2[1]) * 0.5], dtype=np.float32)
+
+    scale = dist / part_data.base_anchor_dist
+    angle_diff = angle - part_data.base_anchor_angle
+
+    cos_a = math.cos(angle_diff)
+    sin_a = math.sin(angle_diff)
+    rot = np.array([[cos_a, -sin_a], [sin_a, cos_a]], dtype=np.float32)
+    offset_vec = np.array(part_data.offset_from_anchor, dtype=np.float32)
+    new_offset = rot @ (offset_vec * scale)
+    new_center = mid + new_offset
+    return (int(new_center[0]), int(new_center[1])), scale, angle_diff, (float(mid[0]), float(mid[1]))
+
+
+def reanchor_part_data(
+    part_data: FacePartData,
+    landmarks: List[List[float]],
+    frame_width: int,
+    frame_height: int,
+    target_center: Tuple[int, int],
+) -> None:
+    """
+    Perbarui referensi anchor agar posisi saat ini menjadi basis:
+    - base_anchor_* diset ke anchor terkini
+    - offset_from_anchor disesuaikan ke target_center saat ini
+    """
+    if not part_data.anchor_indices:
+        return
+    pts = _px_points(landmarks, part_data.anchor_indices, frame_width, frame_height)
+    if len(pts) < 2:
+        return
+
+    p1, p2 = pts[0], pts[1]
+    vec = np.array(p2, dtype=np.float32) - np.array(p1, dtype=np.float32)
+    dist = float(np.linalg.norm(vec))
+    if dist < 1e-3:
+        return
+    angle = float(math.atan2(vec[1], vec[0]))
+    mid = (float((p1[0] + p2[0]) * 0.5), float((p1[1] + p2[1]) * 0.5))
+
+    part_data.base_anchor_mid = mid
+    part_data.base_anchor_dist = dist
+    part_data.base_anchor_angle = angle
+    part_data.offset_from_anchor = (
+        float(target_center[0] - mid[0]),
+        float(target_center[1] - mid[1]),
+    )
+
+
+def _sample_skin_color(
+    frame: np.ndarray,
+    landmarks: List[List[float]],
+    frame_width: int,
+    frame_height: int,
+) -> List[int]:
+    """
+    Ambil sampel warna kulit dari beberapa titik wajah (pipi kanan/kiri, dahi, dagu, rahang)
+    lalu kembalikan median BGR agar lebih robust ke tone beragam dan noise pencahayaan.
+    """
+    sample_indices = [234, 454, 10, 152, 50, 280]
+    patches: List[np.ndarray] = []
+    radius = 3  # 7x7 patch per titik
+
+    for idx in sample_indices:
+        lx, ly = landmarks[idx]
+        cx, cy = int(lx * frame_width), int(ly * frame_height)
+        x1, x2 = max(0, cx - radius), min(frame_width, cx + radius + 1)
+        y1, y2 = max(0, cy - radius), min(frame_height, cy + radius + 1)
+        if x2 > x1 and y2 > y1:
+            patch = frame[y1:y2, x1:x2]
+            if patch.size > 0:
+                patches.append(patch.reshape(-1, 3))
+
+    if patches:
+        all_pixels = np.concatenate(patches, axis=0)
+        median_color = np.median(all_pixels, axis=0)
+        return [int(c) for c in median_color.tolist()]
+
+    return [180, 150, 130]  # fallback BGR
 
 
 # ---------- EAR ----------
@@ -70,16 +226,11 @@ def apply_face_mask(
     frame_height: int,
 ) -> np.ndarray:
     """
-    Tutup area sensitif dengan warna kulit estimasi dari pipi (LM 234).
+    Tutup area sensitif dengan warna kulit estimasi dari beberapa titik wajah (median).
     Mulut pakai convex hull dari FACEMESH_LIPS (outer) + subtract inner ring.
     """
     # Ambil warna kulit dari pipi
-    cheek = landmarks[234]
-    cx, cy = int(cheek[0] * frame_width), int(cheek[1] * frame_height)
-    if 0 <= cy < frame_height and 0 <= cx < frame_width:
-        skin_color = frame[cy, cx].tolist()
-    else:
-        skin_color = [180, 150, 130]  # fallback BGR
+    skin_color = _sample_skin_color(frame, landmarks, frame_width, frame_height)
 
     # Area lain (tetap seperti punyamu)
     masked_areas = [
@@ -243,7 +394,18 @@ def crop_face_part(
         cropped = cv2.bitwise_and(roi, roi, mask=mask)
 
     center = (x + w // 2, y + h // 2)
-    return FacePartData(image=cropped, center=center)
+    anchor_indices, base_mid, base_dist, base_angle, offset = _compute_anchor_data(
+        part_type, landmarks, frame_width, frame_height, center
+    )
+    return FacePartData(
+        image=cropped,
+        center=center,
+        anchor_indices=anchor_indices,
+        base_anchor_mid=base_mid,
+        base_anchor_dist=base_dist,
+        base_anchor_angle=base_angle,
+        offset_from_anchor=offset,
+    )
 
 def get_nose_position(landmarks: List[List[float]], frame_width: int, frame_height: int) -> Tuple[int, int]:
     """Koordinat hidung (nose tip) LM 4."""

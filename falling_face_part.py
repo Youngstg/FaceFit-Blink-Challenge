@@ -1,8 +1,11 @@
+import math
 import random
-from typing import Optional, Tuple
+from typing import List, Optional, Tuple
 
 import cv2
 import numpy as np
+
+from face_processing import FacePartData, compute_aligned_center, reanchor_part_data
 
 
 class FallingFacePart:
@@ -13,42 +16,43 @@ class FallingFacePart:
 
     def __init__(
         self,
-        image: np.ndarray,
+        part_data: FacePartData,
         part_type: str,
         frame_width: int,
         frame_height: int,
         spawn_x: Optional[int] = None,
     ) -> None:
+        self.part_data = part_data
         # === DATA GAMBAR ===
-        self.image = image  # Gambar bagian wajah (mata/hidung/mulut)
+        self._original_image = part_data.image
+        self.image = part_data.image  # Gambar bagian wajah (mata/hidung/mulut)
         self.part_type = part_type  # Nama bagian: "mata", "hidung", "mulut"
         
         # === UKURAN GAMBAR ===
-        self.width = image.shape[1] if image is not None else 50  # Lebar gambar
-        self.height = image.shape[0] if image is not None else 50  # Tinggi gambar
+        self.width = self.image.shape[1] if self.image is not None else 50  # Lebar gambar
+        self.height = self.image.shape[0] if self.image is not None else 50  # Tinggi gambar
+        self._base_size = (self.width, self.height)
+        self._current_scale = 1.0
+        self._angle_smoothed = 0.0
         
         # === POSISI SPAWN (MUNCULNYA) ===
         # Tentukan batas kiri-kanan agar tidak terlalu pinggir
-        min_x = max(50, (image.shape[1] // 2) if image is not None else 50)
+        min_x = max(50, (self.image.shape[1] // 2) if self.image is not None else 50)
         max_x = max(min_x + 1, frame_width - min_x)
         
         # Pilih posisi X secara acak atau gunakan posisi yang ditentukan
         random_x = random.randint(min_x, max_x)
-        self.spawn_x = int(np.clip(spawn_x, min_x, max_x)) if spawn_x is not None else random_x
+        self.spawn_x = float(np.clip(spawn_x, min_x, max_x)) if spawn_x is not None else float(random_x)
         
         # === POSISI AWAL ===
-        self.x = self.spawn_x  # Posisi horizontal (kiri-kanan)
-        self.y = -self.height  # Posisi vertikal: mulai di atas layar (negatif = belum kelihatan)
+        self.x: float = self.spawn_x  # Posisi horizontal (kiri-kanan)
+        self.y: float = -float(self.height)  # Posisi vertikal: mulai di atas layar (negatif = belum kelihatan)
         
         # === KECEPATAN JATUH ===
         self.speed = random.randint(4, 8)  # Kecepatan jatuh acak antara 4-8 pixel per frame
         
         # === STATUS ===
         self.is_falling = True  # True = masih jatuh, False = sudah nempel di wajah
-        
-        # === TRACKING WAJAH ===
-        # Simpan jarak dari hidung setelah nempel (biar bisa ikut gerak kepala)
-        self.offset_from_nose: Optional[Tuple[int, int]] = None
 
     def update(self) -> None:
         """
@@ -63,41 +67,88 @@ class FallingFacePart:
         Kembalikan ke posisi awal (untuk dijatuhkan lagi).
         Digunakan ketika bagian wajah ini ingin dijatuhkan ulang.
         """
+        # Kembalikan ukuran ke dasar saat dijatuhkan ulang
+        if self._original_image is not None:
+            self.image = self._original_image
+            self.width, self.height = self._base_size
+            self._current_scale = 1.0
         self.y = -self.height  # Kembali ke atas layar
         self.x = self.spawn_x  # Kembali ke kolom awal
         self.is_falling = True  # Aktifkan status jatuh
 
-    def stop(self, stop_x: int, stop_y: int, nose_pos: Tuple[int, int]) -> None:
-        """
-        Hentikan jatuhnya bagian wajah dan tempelkan di posisi tertentu.
-        
-        Args:
-            stop_x: Posisi X akhir (tempat nempel)
-            stop_y: Posisi Y akhir (tempat nempel)
-            nose_pos: Posisi hidung saat ini (x, y) - sebagai titik referensi
-        """
-        self.is_falling = False  # Matikan status jatuh
-        self.x = stop_x  # Simpan posisi nempel
-        self.y = stop_y
-        
-        # Hitung dan simpan jarak dari hidung
-        # Jadi nanti kalau kepala gerak, bagian wajah ikut gerak juga
-        self.offset_from_nose = (stop_x - nose_pos[0], stop_y - nose_pos[1])
+    def apply_scale(self, scale: float) -> None:
+        """Skalakan gambar sesuai perubahan jarak anchor."""
+        if self._original_image is None:
+            return
+        # Hindari skala ekstrem
+        scale = max(0.5, min(2.0, float(scale)))
+        self._current_scale = scale
+        new_w = max(1, int(self._base_size[0] * scale))
+        new_h = max(1, int(self._base_size[1] * scale))
+        if new_w == self.width and new_h == self.height:
+            return
+        self.image = cv2.resize(self._original_image, (new_w, new_h), interpolation=cv2.INTER_LINEAR)
+        self.width, self.height = new_w, new_h
 
-    def update_position_from_tracking(self, nose_pos: Tuple[int, int]) -> None:
+    def stop(self, target_center: Tuple[int, int]) -> None:
+        """Hentikan jatuhnya bagian wajah dan tempelkan di posisi tertentu."""
+        self.is_falling = False
+        self.x, self.y = target_center
+        # Saat menempel, jadikan pusat sekarang sebagai referensi anchor baru
+
+    def reanchor_to_current_landmarks(
+        self,
+        landmarks: List[List[float]],
+        frame_width: int,
+        frame_height: int,
+    ) -> None:
+        """Perbarui anchor agar mengikuti perubahan ukuran/orientasi wajah setelah ditempel."""
+        if landmarks is None:
+            return
+        center = (int(self.x), int(self.y))
+        reanchor_part_data(self.part_data, landmarks, frame_width, frame_height, center)
+        # Reset smoothing angle ke 0 agar delta selanjutnya diukur dari referensi baru
+        self._angle_smoothed = 0.0
+
+    def update_position_from_landmarks(
+        self,
+        landmarks: List[List[float]],
+        frame_width: int,
+        frame_height: int,
+    ) -> None:
         """
-        Update posisi bagian wajah mengikuti pergerakan kepala.
-        Digunakan setelah bagian wajah sudah nempel.
-        
-        Args:
-            nose_pos: Posisi hidung saat ini (x, y)
+        Update posisi bagian wajah mengikuti pergerakan kepala berbasis dua anchor.
+        Dipanggil setelah bagian wajah sudah nempel.
         """
-        if self.offset_from_nose is None:
-            return  # Belum nempel, skip
-        
-        # Posisi baru = posisi hidung sekarang + jarak yang tersimpan
-        self.x = nose_pos[0] + self.offset_from_nose[0]
-        self.y = nose_pos[1] + self.offset_from_nose[1]
+        if self.is_falling:
+            return
+        result = compute_aligned_center(
+            self.part_data, landmarks, frame_width, frame_height
+        )
+        if result:
+            (cx, cy), scale, angle_diff, mid = result
+            # Smooth scale dan sudut untuk mengurangi jitter
+            alpha_scale = 0.2
+            smoothed_scale = self._current_scale * (1 - alpha_scale) + float(scale) * alpha_scale
+
+            alpha_angle = 0.2
+            self._angle_smoothed = self._angle_smoothed * (1 - alpha_angle) + float(angle_diff) * alpha_angle
+
+            # Hitung ulang center dengan sudut yang dismoothing
+            offset_vec = np.array(self.part_data.offset_from_anchor, dtype=np.float32)
+            cos_a = math.cos(self._angle_smoothed)
+            sin_a = math.sin(self._angle_smoothed)
+            rot = np.array([[cos_a, -sin_a], [sin_a, cos_a]], dtype=np.float32)
+            new_offset = rot @ (offset_vec * smoothed_scale)
+            new_center = np.array([mid[0], mid[1]], dtype=np.float32) + new_offset
+
+            # Smooth posisi juga
+            alpha_pos = 0.2
+            smoothed_x = self.x * (1 - alpha_pos) + float(new_center[0]) * alpha_pos
+            smoothed_y = self.y * (1 - alpha_pos) + float(new_center[1]) * alpha_pos
+
+            self.apply_scale(smoothed_scale)
+            self.x, self.y = smoothed_x, smoothed_y
 
     def draw(self, frame: np.ndarray) -> None:
         """
