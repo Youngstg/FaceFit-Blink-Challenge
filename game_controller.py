@@ -251,11 +251,20 @@ class FaceFilterGame:
         if current_falling_obj:
             current_falling_obj.update()  # Update posisi (jatuh ke bawah)
 
-            # Jika ada kedipan baru, hentikan objek dan tempel ke wajah
+            # Jika ada kedipan baru, hentikan objek dan tempel tepat di posisi jatuh saat ini
+            # (jangan snap ke lokasi capture awal). Skala bisa disesuaikan dari anchor, tapi pusat tetap posisi sekarang.
             if blink_event and self._last_landmarks:
-                # Tempel di posisi jatuh saat ini (tidak di-snap ke anchor)
                 target_center = (int(current_falling_obj.x), int(current_falling_obj.y))
-                current_falling_obj.apply_scale(1.0)
+                scale_at_stop = 1.0
+                snap_result = compute_aligned_center(
+                    current_falling_obj.part_data,
+                    self._last_landmarks,
+                    frame_width,
+                    frame_height,
+                )
+                if snap_result:
+                    _, scale_at_stop, _, _ = snap_result
+                current_falling_obj.apply_scale(scale_at_stop)
                 current_falling_obj.stop(target_center)
                 # Set ulang anchor referensi ke pose wajah sekarang agar tracking skala/rotasi mengikuti
                 current_falling_obj.reanchor_to_current_landmarks(
