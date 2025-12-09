@@ -4,6 +4,7 @@ from pathlib import Path
 import cv2
 import mediapipe as mp
 import numpy as np
+import pygame
 
 from constants import (
     CAPTURE_COUNTDOWN,
@@ -32,13 +33,13 @@ from face_processing import (
 class SVGImageLoader:
     """Load dan cache SVG images yang sudah diconvert ke PNG."""
     
-    def __init__(self):  # Changed from _init_
+    def _init(self):  # Changed from _init
         self._cache: Dict[str, Optional[np.ndarray]] = {}
-        self.assets_dir = Path(__file__).parent / "Assets"  # Changed from file_ to __file__
+        self.assets_dir = Path(_file).parent / "Assets"  # Changed from file to _file_
     
     def load_svg_as_png(self, filename: str, width: int, height: int) -> Optional[np.ndarray]:
         """Load SVG file dan convert ke PNG array untuk display di OpenCV."""
-        cache_key = f"{filename}_{width}_{height}"  # Changed separator to underscore for clarity
+        cache_key = f"{filename}{width}{height}"  # Changed separator to underscore for clarity
         
         if cache_key in self._cache:
             return self._cache[cache_key]
@@ -102,7 +103,7 @@ class FaceFilterGame:
         
         return x_display, y_display
 
-    def __init__(self, camera_index: int = 0):  # Changed from _init_
+    def _init(self, camera_index: int = 0):  # Changed from _init
         """Initialize the game with camera index"""
         self.camera_index = camera_index
         
@@ -125,6 +126,9 @@ class FaceFilterGame:
         self._ear_samples = []  # type: List[float]
         self._ear_threshold = EAR_THRESHOLD
         self._ear_state_closed = False  # untuk hysteresis buka/tutup
+        
+        # Initialize audio
+        self._init_audio()
 
     def run(self) -> None:
         """Fungsi utama untuk menjalankan game."""
@@ -157,6 +161,12 @@ class FaceFilterGame:
         ) as face_mesh:
             # Loop utama game
             first_frame = True
+            music_started = False  # Track apakah music sudah diplay
+            
+            # Play background music di awal
+            self._play_background_music()
+            music_started = True
+            
             while capture.isOpened():
                 frame_available, frame = capture.read()
                 if not frame_available:
@@ -755,6 +765,42 @@ class FaceFilterGame:
             # No alpha, just copy
             frame[y1:y2, x1:x2] = img[img_y1:img_y2, img_x1:img_x2]
 
+    def _init_audio(self) -> None:
+        """Initialize pygame mixer untuk background music."""
+        try:
+            pygame.mixer.init(frequency=44100, size=-16, channels=2, buffer=512)
+            
+            # Path ke audio file
+            audio_path = Path(_file_).parent / "Assets" / "Cartoon Bounce.mp3"
+            
+            if audio_path.exists():
+                pygame.mixer.music.load(str(audio_path))
+                self._audio_loaded = True
+                print(f"[AUDIO] Loaded: {audio_path}")
+            else:
+                self._audio_loaded = False
+                print(f"[WARNING] Audio file not found: {audio_path}")
+        except Exception as e:
+            self._audio_loaded = False
+            print(f"[ERROR] Failed to init audio: {e}")
+    
+    def _play_background_music(self) -> None:
+        """Play background music on loop."""
+        if self._audio_loaded:
+            try:
+                pygame.mixer.music.play(-1)  # -1 untuk infinite loop
+                print("[AUDIO] Background music started (loop)")
+            except Exception as e:
+                print(f"[ERROR] Failed to play music: {e}")
+    
+    def _stop_background_music(self) -> None:
+        """Stop background music."""
+        try:
+            pygame.mixer.music.stop()
+            print("[AUDIO] Background music stopped")
+        except Exception as e:
+            print(f"[ERROR] Failed to stop music: {e}")
+
     def _on_mouse_click(self, event, x, y, flags, param):
         """Handle mouse click untuk deteksi klik tombol START."""
         if event == cv2.EVENT_LBUTTONDOWN:
@@ -766,8 +812,13 @@ class FaceFilterGame:
                     self.current_state = STATE_CAPTURE
                     print("[INFO] Game dimulai! Countdown dimulai...")
 
-    def __del__(self):  # Changed from _del_
+    def _del(self):  # Changed from _del
         """Cleanup resources"""
+        self._stop_background_music()
+        try:
+            pygame.mixer.quit()
+        except:
+            pass
         if hasattr(self, 'cap') and self.cap is not None:
             self.cap.release()
         cv2.destroyAllWindows()
