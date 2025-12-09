@@ -10,7 +10,7 @@ from face_processing import FacePartData, compute_aligned_center, reanchor_part_
 class FallingFacePart:
     """Class untuk objek bagian wajah yang jatuh."""
     
-    def __init__(
+    def _init_(
         self,
         part_data: FacePartData,
         part_type: str,

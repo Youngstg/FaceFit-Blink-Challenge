@@ -32,13 +32,13 @@ from face_processing import (
 class SVGImageLoader:
     """Load dan cache SVG images yang sudah diconvert ke PNG."""
     
-    def __init__(self):
+    def _init_(self):
         self._cache: Dict[str, Optional[np.ndarray]] = {}
-        self._assets_dir = Path(__file__).parent / "Assets"
+        self.assets_dir = Path(file_).parent / "Assets"
     
     def load_svg_as_png(self, filename: str, width: int, height: int) -> Optional[np.ndarray]:
         """Load SVG file dan convert ke PNG array untuk display di OpenCV."""
-        cache_key = f"{filename}_{width}_{height}"
+        cache_key = f"{filename}{width}{height}"
         
         if cache_key in self._cache:
             return self._cache[cache_key]
@@ -102,7 +102,7 @@ class FaceFilterGame:
         
         return x_display, y_display
 
-    def __init__(self, camera_index: int = 0):
+    def _init_(self, camera_index: int = 0):
         """Initialize the game with camera index"""
         self.camera_index = camera_index
         
@@ -656,9 +656,8 @@ class FaceFilterGame:
                     self.current_state = STATE_CAPTURE
                     print("[INFO] Game dimulai! Countdown dimulai...")
 
-    def __del__(self):
+    def _del_(self):
         """Cleanup resources"""
         if hasattr(self, 'cap') and self.cap is not None:
             self.cap.release()
         cv2.destroyAllWindows()
-
