@@ -10,14 +10,14 @@ from face_processing import FacePartData, compute_aligned_center, reanchor_part_
 class FallingFacePart:
     """Class untuk objek bagian wajah yang jatuh."""
     
-    def __init__(
+    def _init_(
         self,
         part_data: FacePartData,
         part_type: str,
         screen_width: int,
         screen_height: int,
         spawn_x: Optional[int] = None,
-        fall_speed: float = 5.0,
+        fall_speed: float = 10.0,
     ):
         """
         Initialize falling face part object.
@@ -51,9 +51,11 @@ class FallingFacePart:
         self.original_image = part_data.image.copy() if part_data.image is not None else None
         
     def update(self) -> None:
-        """Update posisi objek (jatuh ke bawah)."""
+        """Update posisi objek (jatuh ke bawah, X tetap)."""
         if self.is_falling:
             self.y += self.fall_speed
+            # Pastikan X tetap sama dengan posisi awal
+            self.x = float(self.start_x)
     
     def reset_start_position(self) -> None:
         """Reset posisi ke atas layar."""
