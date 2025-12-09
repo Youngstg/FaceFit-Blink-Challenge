@@ -33,19 +33,19 @@ from face_processing import (
 class SVGImageLoader:
     """Load dan cache SVG images yang sudah diconvert ke PNG."""
     
-    def _init(self):  # Changed from _init
+    def __init__(self):  # UBAH dari _init_ menjadi __init__
         self._cache: Dict[str, Optional[np.ndarray]] = {}
-        self.assets_dir = Path(_file).parent / "Assets"  # Changed from file to _file_
+        self.assets_dir = Path(__file__).parent / "Assets"
     
     def load_svg_as_png(self, filename: str, width: int, height: int) -> Optional[np.ndarray]:
         """Load SVG file dan convert ke PNG array untuk display di OpenCV."""
-        cache_key = f"{filename}{width}{height}"  # Changed separator to underscore for clarity
+        cache_key = f"{filename}_{width}_{height}"
         
         if cache_key in self._cache:
             return self._cache[cache_key]
         
         try:
-            svg_path = self.assets_dir / filename  # Changed from self._assets_dir to self.assets_dir
+            svg_path = self.assets_dir / filename
             if not svg_path.exists():
                 print(f"[ERROR] SVG file not found: {svg_path}")
                 return None
@@ -61,13 +61,12 @@ class SVGImageLoader:
                     self._cache[cache_key] = img
                     return img
             
-            # Fallback: load SVG and convert in memory
-            print(f"[WARNING] PNG not found for {filename}, using SVG")
-            # For now, return None if no PNG available
+            # Fallback: return None if no PNG available
+            print(f"[WARNING] PNG not found for {filename}")
             return None
             
         except Exception as e:
-            print(f"[ERROR] Failed to load SVG {filename}: {e}")
+            print(f"[ERROR] Failed to load image {filename}: {e}")
             return None
 
 
@@ -103,7 +102,7 @@ class FaceFilterGame:
         
         return x_display, y_display
 
-    def _init(self, camera_index: int = 0):  # Changed from _init
+    def __init__(self, camera_index: int = 0):  # UBAH dari _init_ menjadi __init__
         """Initialize the game with camera index"""
         self.camera_index = camera_index
         
@@ -771,7 +770,7 @@ class FaceFilterGame:
             pygame.mixer.init(frequency=44100, size=-16, channels=2, buffer=512)
             
             # Path ke audio file
-            audio_path = Path(_file_).parent / "Assets" / "Cartoon Bounce.mp3"
+            audio_path = Path(__file__).parent / "Assets" / "Cartoon Bounce.mp3"
             
             if audio_path.exists():
                 pygame.mixer.music.load(str(audio_path))
@@ -812,13 +811,8 @@ class FaceFilterGame:
                     self.current_state = STATE_CAPTURE
                     print("[INFO] Game dimulai! Countdown dimulai...")
 
-    def _del(self):  # Changed from _del
+    def __del__(self):  # UBAH dari _del_ menjadi __del__
         """Cleanup resources"""
-        self._stop_background_music()
-        try:
-            pygame.mixer.quit()
-        except:
-            pass
         if hasattr(self, 'cap') and self.cap is not None:
             self.cap.release()
         cv2.destroyAllWindows()

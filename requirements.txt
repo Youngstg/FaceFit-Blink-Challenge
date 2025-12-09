@@ -3,3 +3,4 @@ opencv-python==4.10.0.84
 numpy==1.26.4
 # TensorFlow pulls protobuf>=5 which conflicts with mediapipe; pin protobuf to a 4.x build
 protobuf==4.25.3
+pygame==2.6.1
