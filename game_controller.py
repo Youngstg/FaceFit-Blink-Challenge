@@ -32,19 +32,19 @@ from face_processing import (
 class SVGImageLoader:
     """Load dan cache SVG images yang sudah diconvert ke PNG."""
     
-    def _init_(self):
+    def __init__(self):  # Changed from _init_
         self._cache: Dict[str, Optional[np.ndarray]] = {}
-        self.assets_dir = Path(file_).parent / "Assets"
+        self.assets_dir = Path(__file__).parent / "Assets"  # Changed from file_ to __file__
     
     def load_svg_as_png(self, filename: str, width: int, height: int) -> Optional[np.ndarray]:
         """Load SVG file dan convert ke PNG array untuk display di OpenCV."""
-        cache_key = f"{filename}{width}{height}"
+        cache_key = f"{filename}_{width}_{height}"  # Changed separator to underscore for clarity
         
         if cache_key in self._cache:
             return self._cache[cache_key]
         
         try:
-            svg_path = self._assets_dir / filename
+            svg_path = self.assets_dir / filename  # Changed from self._assets_dir to self.assets_dir
             if not svg_path.exists():
                 print(f"[ERROR] SVG file not found: {svg_path}")
                 return None
@@ -102,7 +102,7 @@ class FaceFilterGame:
         
         return x_display, y_display
 
-    def _init_(self, camera_index: int = 0):
+    def __init__(self, camera_index: int = 0):  # Changed from _init_
         """Initialize the game with camera index"""
         self.camera_index = camera_index
         
@@ -656,7 +656,7 @@ class FaceFilterGame:
                     self.current_state = STATE_CAPTURE
                     print("[INFO] Game dimulai! Countdown dimulai...")
 
-    def _del_(self):
+    def __del__(self):  # Changed from _del_
         """Cleanup resources"""
         if hasattr(self, 'cap') and self.cap is not None:
             self.cap.release()
