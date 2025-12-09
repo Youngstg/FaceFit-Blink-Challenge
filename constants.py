@@ -12,6 +12,7 @@ EAR_MIN_THRESHOLD = 0.17        # batas bawah agar tidak terlalu kecil
 EAR_HYSTERESIS = 0.02           # jarak aman untuk membuka kembali (anti flicker)
 
 # Status aplikasi / state machine
+STATE_MENU = 2     # Mode menu / sebelum mulai
 STATE_CAPTURE = 0  # Mode persiapan / menangkap (countdown)
 STATE_PLAYING = 1  # Mode bermain / aktif setelah capture
 

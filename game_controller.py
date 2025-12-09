@@ -1,4 +1,5 @@
 from typing import Any, Dict, List, Optional, Sequence, Tuple
+from pathlib import Path
 
 import cv2
 import mediapipe as mp
@@ -10,6 +11,7 @@ from constants import (
     FACE_PART_SEQUENCE,
     STATE_CAPTURE,
     STATE_PLAYING,
+    STATE_MENU,
     EAR_DYNAMIC_ENABLED,
     EAR_DYNAMIC_SAMPLES,
     EAR_DYNAMIC_FACTOR,
@@ -27,8 +29,78 @@ from face_processing import (
 )
 
 
+class SVGImageLoader:
+    """Load dan cache SVG images yang sudah diconvert ke PNG."""
+    
+    def __init__(self):
+        self._cache: Dict[str, Optional[np.ndarray]] = {}
+        self._assets_dir = Path(__file__).parent / "Assets"
+    
+    def load_svg_as_png(self, filename: str, width: int, height: int) -> Optional[np.ndarray]:
+        """Load SVG file dan convert ke PNG array untuk display di OpenCV."""
+        cache_key = f"{filename}_{width}_{height}"
+        
+        if cache_key in self._cache:
+            return self._cache[cache_key]
+        
+        try:
+            svg_path = self._assets_dir / filename
+            if not svg_path.exists():
+                print(f"[ERROR] SVG file not found: {svg_path}")
+                return None
+            
+            # Try load as PNG first (if PNG version exists)
+            png_path = svg_path.with_suffix('.png')
+            if png_path.exists():
+                img = cv2.imread(str(png_path), cv2.IMREAD_UNCHANGED)
+                if img is not None:
+                    # Resize if needed
+                    if img.shape[0] != height or img.shape[1] != width:
+                        img = cv2.resize(img, (width, height), interpolation=cv2.INTER_LINEAR)
+                    self._cache[cache_key] = img
+                    return img
+            
+            # Fallback: load SVG and convert in memory
+            print(f"[WARNING] PNG not found for {filename}, using SVG")
+            # For now, return None if no PNG available
+            return None
+            
+        except Exception as e:
+            print(f"[ERROR] Failed to load SVG {filename}: {e}")
+            return None
+
+
 class FaceFilterGame:
     """Main loop pengelolaan permainan Face Filter Blink Challenge."""
+
+    def _adjust_landmarks_for_display(self, results, offset_x, offset_y):
+        """Adjust landmark coordinates untuk fullscreen display dengan offset."""
+        if results is None or results.multi_face_landmarks is None:
+            return results
+        
+        # MediaPipe returns normalized coordinates (0-1)
+        # Kami perlu store offset info untuk convert ke display coordinates nanti
+        # Store offset di class untuk digunakan di methods lainnya
+        self._display_offset = (offset_x, offset_y)
+        
+        return results
+    
+    def _normalize_to_display(self, x_norm, y_norm, frame_width, frame_height):
+        """Convert normalized landmark coordinates ke display coordinates."""
+        if not hasattr(self, '_display_offset'):
+            self._display_offset = (0, 0)
+        
+        offset_x, offset_y = self._display_offset
+        
+        # Normalized (0-1) to pixel coordinates pada resized frame
+        x_pixel = int(x_norm * frame_width)
+        y_pixel = int(y_norm * frame_height)
+        
+        # Add offset untuk fullscreen position
+        x_display = x_pixel + offset_x
+        y_display = y_pixel + offset_y
+        
+        return x_display, y_display
 
     def __init__(self, camera_index: int = 0):
         """Initialize the game with camera index"""
@@ -46,6 +118,8 @@ class FaceFilterGame:
 
         self._face_mesh_solution = mp.solutions.face_mesh  # Inisialisasi MediaPipe Face Mesh
         self._part_sequence: Sequence[str] = FACE_PART_SEQUENCE  # Urutan bagian wajah yang akan dijatuhkan
+        self._svg_loader = SVGImageLoader()  # Initialize SVG image loader
+        self._camera_area: Tuple[int, int, int, int] = (0, 0, 950, 800)  # (x, y, width, height)
         self.reset_state()  # Set state awal game
         # Variabel kalibrasi EAR dinamis
         self._ear_samples = []  # type: List[float]
@@ -57,6 +131,23 @@ class FaceFilterGame:
         # Buka kamera
         capture = cv2.VideoCapture(self.camera_index)
 
+        # Set camera properties untuk better performance
+        capture.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
+        capture.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
+        capture.set(cv2.CAP_PROP_FPS, 30)
+
+        # Define fullscreen display size
+        fullscreen_width, fullscreen_height = 1920, 1080
+        
+        # Define centered camera area size
+        camera_width, camera_height = 950, 800
+        camera_x = (fullscreen_width - camera_width) // 2
+        camera_y = (fullscreen_height - camera_height) // 2
+        
+        # Store camera area info di class untuk digunakan di state methods
+        self._camera_area = (camera_x, camera_y, camera_width, camera_height)
+        self._display_offset = (camera_x, camera_y)
+
         # Inisialisasi face mesh dengan konfigurasi
         with self._face_mesh_solution.FaceMesh(
             min_detection_confidence=0.5,  # Minimum confidence untuk deteksi wajah
@@ -64,6 +155,7 @@ class FaceFilterGame:
             max_num_faces=1,                # Hanya deteksi 1 wajah
         ) as face_mesh:
             # Loop utama game
+            first_frame = True
             while capture.isOpened():
                 frame_available, frame = capture.read()  # Baca frame dari kamera
                 if not frame_available:
@@ -71,22 +163,49 @@ class FaceFilterGame:
 
                 # Flip frame agar seperti cermin
                 frame = cv2.flip(frame, 1)
-                frame_height, frame_width, _ = frame.shape
+                cam_height, cam_width, _ = frame.shape
                 
-                # Konversi ke RGB untuk MediaPipe
-                rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-                results = face_mesh.process(rgb_frame)  # Proses deteksi wajah
-
+                # Create fullscreen display frame dengan cream background
+                display_frame = np.full((fullscreen_height, fullscreen_width, 3), (198, 230, 255), dtype=np.uint8)
+                
+                # Resize camera frame ke camera area size
+                resized_frame = cv2.resize(frame, (camera_width, camera_height))
+                
+                # Paste camera frame ke tengah fullscreen display
+                display_frame[camera_y:camera_y+camera_height, camera_x:camera_x+camera_width] = resized_frame
+                
                 # Proses berdasarkan state saat ini
-                if self.current_state == STATE_CAPTURE:
-                    # State untuk mengcapture bagian wajah
-                    self._process_capture_state(frame, results, frame_width, frame_height)
+                if self.current_state == STATE_MENU:
+                    # State menu dengan tombol START - overlay di atas display_frame
+                    self._process_menu_state(display_frame, fullscreen_width, fullscreen_height)
                 else:
-                    # State untuk bermain (menjatuhkan dan menangkap bagian wajah)
-                    self._process_play_state(frame, results, frame_width, frame_height)
+                    # Convert resized frame ke RGB untuk MediaPipe
+                    rgb_frame = cv2.cvtColor(resized_frame, cv2.COLOR_BGR2RGB)
+                    results = face_mesh.process(rgb_frame)  # Proses deteksi wajah
+                    
+                    # Store offset untuk landmark conversion
+                    self._display_offset = (camera_x, camera_y)
+                    self._camera_frame_dims = (camera_width, camera_height)
+
+                    # Proses berdasarkan state saat ini
+                    # Note: Gunakan camera_width/height untuk text positioning, bukan fullscreen dims
+                    if self.current_state == STATE_CAPTURE:
+                        # State untuk mengcapture bagian wajah
+                        self._process_capture_state(display_frame, results, camera_width, camera_height)
+                    else:
+                        # State untuk bermain (menjatuhkan dan menangkap bagian wajah)
+                        self._process_play_state(display_frame, results, camera_width, camera_height)
 
                 # Tampilkan frame
-                cv2.imshow("Face Filter - Crop & Drop", frame)
+                if first_frame:
+                    window_name = "FaceFit Blink Challenge"
+                    cv2.namedWindow(window_name, cv2.WINDOW_NORMAL)
+                    cv2.setWindowProperty(window_name, cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
+                    cv2.setMouseCallback(window_name, self._on_mouse_click)
+                    first_frame = False
+                
+                cv2.imshow("FaceFit Blink Challenge", display_frame)
+                
                 key = cv2.waitKey(1) & 0xFF
 
                 # Handle keyboard input
@@ -101,7 +220,7 @@ class FaceFilterGame:
 
     def reset_state(self) -> None:
         """Reset semua state game ke kondisi awal."""
-        self.current_state = STATE_CAPTURE  # Mulai dari state capture
+        self.current_state = STATE_MENU  # Mulai dari menu
         self.face_parts: Dict[str, FacePartData] = {}  # Simpan gambar + koordinat target bagian wajah
         self.falling_objects: List[FallingFacePart] = []  # List objek yang sedang jatuh
         self.placed_objects: List[FallingFacePart] = []  # List objek yang sudah ditangkap/ditempel
@@ -114,6 +233,7 @@ class FaceFilterGame:
         self._ear_threshold = EAR_THRESHOLD
         self._ear_state_closed = False
         self._last_landmarks: Optional[List[List[float]]] = None
+        self._start_button_rect: Optional[Tuple[int, int, int, int]] = None  # (x, y, w, h)
 
     def _process_capture_state(
         self,
@@ -143,6 +263,7 @@ class FaceFilterGame:
 
             # Jika countdown belum selesai, tampilkan prompt & progress sampel
             if self.capture_countdown > 0:
+                offset_x, offset_y = self._display_offset if hasattr(self, '_display_offset') else (0, 0)
                 self._draw_capture_prompt(
                     frame,
                     frame_width,
@@ -150,6 +271,8 @@ class FaceFilterGame:
                     self.capture_countdown,
                     len(self._ear_samples),
                     EAR_DYNAMIC_SAMPLES,
+                    offset_x,
+                    offset_y,
                 )
                 return
 
@@ -173,10 +296,11 @@ class FaceFilterGame:
             self._spawn_next_falling_object(frame_width, frame_height)
         else:
             # Tidak ada wajah terdeteksi
+            offset_x, offset_y = self._display_offset if hasattr(self, '_display_offset') else (0, 0)
             cv2.putText(
                 frame,
                 "Tidak ada wajah terdeteksi!",
-                (frame_width // 2 - 200, frame_height // 2),
+                (offset_x + frame_width // 2 - 200, offset_y + frame_height // 2),
                 cv2.FONT_HERSHEY_SIMPLEX,
                 1,
                 (0, 0, 255),
@@ -232,11 +356,13 @@ class FaceFilterGame:
             self._blink_active = False
             self._last_landmarks = None
 
+        offset_x, offset_y = self._display_offset if hasattr(self, '_display_offset') else (0, 0)
+
         if blink_display:
             cv2.putText(
                 frame,
                 "BLINK!",
-                (frame_width - 150, 50),
+                (offset_x + frame_width - 150, offset_y + 50),
                 cv2.FONT_HERSHEY_SIMPLEX,
                 1,
                 (0, 255, 0),
@@ -246,7 +372,7 @@ class FaceFilterGame:
         cv2.putText(
             frame,
             f"EAR th={self._ear_threshold:.2f}",
-            (frame_width - 170, 80),
+            (offset_x + frame_width - 170, offset_y + 80),
             cv2.FONT_HERSHEY_SIMPLEX,
             0.5,
             (255, 255, 0),
@@ -360,12 +486,14 @@ class FaceFilterGame:
         remaining_seconds: int,
         ear_collected: int,
         ear_target: int,
+        offset_x: int = 0,
+        offset_y: int = 0,
     ) -> None:
-        """Tampilkan countdown dan instruksi sebelum capture."""
+        """Tampilkan countdown dan instruksi sebelum capture. Drawing pada camera area."""
         cv2.putText(
             frame,
             f"Capture dalam {remaining_seconds}...",
-            (frame_width // 2 - 150, frame_height // 2),
+            (offset_x + frame_width // 2 - 150, offset_y + frame_height // 2),
             cv2.FONT_HERSHEY_SIMPLEX,
             1.5,
             (0, 255, 255),
@@ -374,7 +502,7 @@ class FaceFilterGame:
         cv2.putText(
             frame,
             "Tunjukkan wajah Anda!",
-            (frame_width // 2 - 150, frame_height // 2 + 50),
+            (offset_x + frame_width // 2 - 150, offset_y + frame_height // 2 + 50),
             cv2.FONT_HERSHEY_SIMPLEX,
             0.8,
             (255, 255, 255),
@@ -383,7 +511,7 @@ class FaceFilterGame:
         cv2.putText(
             frame,
             f"Kalibrasi EAR: {ear_collected}/{ear_target}",
-            (frame_width // 2 - 160, frame_height // 2 + 90),
+            (offset_x + frame_width // 2 - 160, offset_y + frame_height // 2 + 90),
             cv2.FONT_HERSHEY_SIMPLEX,
             0.6,
             (200, 255, 200),
@@ -391,12 +519,14 @@ class FaceFilterGame:
         )
 
     def _draw_game_hud(self, frame: np.ndarray, frame_width: int, frame_height: int) -> None:
-        """Tampilkan HUD game (instruksi dan progress)."""
+        """Tampilkan HUD game (instruksi dan progress). Drawing pada camera area."""
+        offset_x, offset_y = self._display_offset if hasattr(self, '_display_offset') else (0, 0)
+        
         # Instruksi cara bermain
         cv2.putText(
             frame,
             "Kedipkan mata untuk menangkap!",
-            (10, 30),
+            (offset_x + 10, offset_y + 30),
             cv2.FONT_HERSHEY_SIMPLEX,
             0.7,
             (255, 255, 255),
@@ -406,7 +536,7 @@ class FaceFilterGame:
         cv2.putText(
             frame,
             f"Bagian: {self.current_part_index}/{len(self._part_sequence)}",
-            (10, 60),
+            (offset_x + 10, offset_y + 60),
             cv2.FONT_HERSHEY_SIMPLEX,
             0.6,
             (255, 255, 255),
@@ -418,15 +548,126 @@ class FaceFilterGame:
             cv2.putText(
                 frame,
                 "SELESAI! Tekan 'R' untuk reset",
-                (frame_width // 2 - 200, frame_height - 50),
+                (offset_x + frame_width // 2 - 200, offset_y + frame_height - 50),
                 cv2.FONT_HERSHEY_SIMPLEX,
                 0.8,
                 (0, 255, 255),
                 2,
             )
 
+    def _process_menu_state(
+        self,
+        frame: np.ndarray,
+        frame_width: int,
+        frame_height: int,
+    ) -> None:
+        """Tampilkan menu dengan background cream dan dekorasi UI."""
+        # Fill fullscreen dengan warna cream (#FFE6C6 = RGB: 255, 230, 198)
+        cream_color = (198, 230, 255)  # BGR format
+        frame[:] = cream_color
+        
+        # Camera area di tengah: 950x800
+        camera_width, camera_height = 950, 800
+        camera_x = (frame_width - camera_width) // 2
+        camera_y = (frame_height - camera_height) // 2
+        
+        # Draw camera area border (white/light background untuk delineasi)
+        cv2.rectangle(
+            frame,
+            (camera_x, camera_y),
+            (camera_x + camera_width, camera_y + camera_height),
+            (255, 255, 255),  # White border
+            2
+        )
+        
+        # Display logo image (smiley face dari assets) di atas area camera
+        logo_img = self._svg_loader.load_svg_as_png("image-removebg-preview (2) 1.png", 120, 120)
+        if logo_img is not None:
+            logo_x = frame_width // 2 - 60
+            logo_y = camera_y - 150
+            self._paste_image_with_alpha(frame, logo_img, logo_x, logo_y)
+        
+        # Display title text "FACEFIT BLINK CHALLENGE" di atas area camera
+        cv2.putText(
+            frame,
+            "FACEFIT BLINK CHALLENGE",
+            (frame_width // 2 - 250, camera_y - 40),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            1.2,
+            (62, 252, 169),
+            2,
+        )
+        
+        # Draw START button di bawah area camera
+        button_y = camera_y + camera_height + 40
+        self._draw_svg_button_combined(frame, frame_width, button_y)
+
+    def _draw_svg_button_combined(self, frame: np.ndarray, frame_width: int, button_y: int) -> None:
+        """Draw START button dengan rounded corners dan outline style."""
+        # Load START button image (280x70)
+        btn_width, btn_height = 280, 70
+        btn_img = self._svg_loader.load_svg_as_png("START_BUTTON.png", btn_width, btn_height)
+        
+        # Position button di tengah
+        btn_x = frame_width // 2 - btn_width // 2
+        btn_y = button_y
+        
+        # Paste button image
+        if btn_img is not None:
+            self._paste_image_with_alpha(frame, btn_img, btn_x, btn_y)
+        
+        # Store button rect untuk click detection
+        self._start_button_rect = (btn_x, btn_y, btn_width, btn_height)
+
+    def _paste_image_with_alpha(self, frame: np.ndarray, img: np.ndarray, x: int, y: int) -> None:
+        """Paste image dengan alpha channel ke frame."""
+        if img is None:
+            return
+        
+        h, w = img.shape[:2]
+        has_alpha = img.shape[2] == 4 if len(img.shape) == 3 else False
+        
+        # Boundary check
+        x1, y1 = max(0, x), max(0, y)
+        x2, y2 = min(frame.shape[1], x + w), min(frame.shape[0], y + h)
+        
+        if x1 >= x2 or y1 >= y2:
+            return
+        
+        # Image coordinates
+        img_x1 = max(0, -x)
+        img_y1 = max(0, -y)
+        img_x2 = w - max(0, x + w - frame.shape[1])
+        img_y2 = h - max(0, y + h - frame.shape[0])
+        
+        if has_alpha:
+            # Extract alpha channel
+            alpha = img[img_y1:img_y2, img_x1:img_x2, 3].astype(float) / 255.0
+            
+            # Blend with frame
+            for c in range(3):
+                frame[y1:y2, x1:x2, c] = (
+                    frame[y1:y2, x1:x2, c] * (1 - alpha) + 
+                    img[img_y1:img_y2, img_x1:img_x2, c] * alpha
+                ).astype(np.uint8)
+        else:
+            # No alpha, just copy
+            frame[y1:y2, x1:x2] = img[img_y1:img_y2, img_x1:img_x2]
+
+    def _on_mouse_click(self, event, x, y, flags, param):
+        """Handle mouse click untuk deteksi klik tombol START."""
+        if event == cv2.EVENT_LBUTTONDOWN:
+            # Cek apakah klik ada di area tombol START
+            if self._start_button_rect is not None:
+                btn_x, btn_y, btn_w, btn_h = self._start_button_rect
+                if btn_x <= x <= btn_x + btn_w and btn_y <= y <= btn_y + btn_h:
+                    # Klik tombol START -> pindah ke STATE_CAPTURE
+                    self.current_state = STATE_CAPTURE
+                    print("[INFO] Game dimulai! Countdown dimulai...")
+
     def __del__(self):
         """Cleanup resources"""
         if hasattr(self, 'cap') and self.cap is not None:
             self.cap.release()
         cv2.destroyAllWindows()
+
