@@ -1,0 +1,453 @@
+\documentclass[11pt,a4paper]{article}
+%%%%%%%%%%%%%%%%%%%%%%%%% Credit %%%%%%%%%%%%%%%%%%%%%%%%
+
+% template ini dibuat oleh martin.manullang@if.itera.ac.id untuk dipergunakan oleh seluruh sivitas akademik itera.
+
+%%%%%%%%%%%%%%%%%%%%%%%%% PACKAGE starts HERE %%%%%%%%%%%%%%%%%%%%%%%%
+\usepackage[utf8]{inputenc}
+\usepackage[bahasa]{babel}
+\usepackage{graphicx}
+\usepackage{caption}
+% \usepackage{microtype}
+\captionsetup[table]{name=Tabel}
+\captionsetup[figure]{name=Gambar}
+\usepackage{tabulary}
+\usepackage{minted}
+% \usepackage{amsmath}
+\usepackage{fancyhdr}
+% \usepackage{amssymb}
+% \usepackage{amsthm}
+\usepackage{placeins}
+% \usepackage{amsfonts}
+\usepackage{graphicx}
+\usepackage[all]{xy}
+\usepackage{tikz}
+\usepackage{verbatim}
+\usepackage[left=2cm,right=2cm,top=3cm,bottom=2.5cm]{geometry}
+\usepackage{hyperref}
+\hypersetup{
+    colorlinks,
+    linkcolor={red!50!black},
+    citecolor={blue!50!black},
+    urlcolor={blue!80!black}
+}
+\usepackage{caption}
+\usepackage{subcaption}
+\usepackage{multirow}
+\usepackage{psfrag}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[bahasa]{babel}
+\usepackage[scaled]{beramono}
+% Enable inserting code into the document
+\usepackage{listings}
+\usepackage{xcolor} 
+% custom color & style for listing
+\definecolor{codegreen}{rgb}{0,0.6,0}
+\definecolor{codegray}{rgb}{0.5,0.5,0.5}
+\definecolor{codepurple}{rgb}{0.58,0,0.82}
+\definecolor{backcolour}{rgb}{0.95,0.95,0.92}
+\definecolor{LightGray}{gray}{0.9}
+\lstdefinestyle{mystyle}{
+	backgroundcolor=\color{backcolour},   
+	commentstyle=\color{green},
+	keywordstyle=\color{codegreen},
+	numberstyle=\tiny\color{codegray},
+	stringstyle=\color{codepurple},
+	basicstyle=\ttfamily\footnotesize,
+	breakatwhitespace=false,         
+	breaklines=true,                 
+	captionpos=b,                    
+	keepspaces=true,                 
+	numbers=left,                    
+	numbersep=5pt,                  
+	showspaces=false,                
+	showstringspaces=false,
+	showtabs=false,                  
+	tabsize=2
+}
+\lstset{style=mystyle}
+\renewcommand{\lstlistingname}{Kode}
+%%%%%%%%%%%%%%%%%%%%%%%%% PACKAGE ends HERE %%%%%%%%%%%%%%%%%%%%%%%%
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%% Data Diri %%%%%%%%%%%%%%%%%%%%%%%%
+\newcommand{\student}{
+    \begin{tabular}{rl}
+        \textbf{1.} & \textbf{Lucky Immanuel S [122140179]} \\[0.5ex]
+        \textbf{2.} & \textbf{Rachel Olivia Manullang [122140181]} \\[0.5ex]
+        \textbf{2.} & \textbf{Eric Arwido Damanik [122140157]} \\[0.5ex]
+    \end{tabular}
+}
+\newcommand{\course}{\textbf{Sistem / Teknologi Multimedia (IF4021)}}
+\newcommand{\assignment}{\textbf{Tugas Besar }}
+
+%%%%%%%%%%%%%%%%%%% using theorem style %%%%%%%%%%%%%%%%%%%%
+\newtheorem{thm}{Theorem}
+\newtheorem{lem}[thm]{Lemma}
+\newtheorem{defn}[thm]{Definition}
+\newtheorem{exa}[thm]{Example}
+\newtheorem{rem}[thm]{Remark}
+\newtheorem{coro}[thm]{Corollary}
+\newtheorem{quest}{Question}[section]
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\usepackage{lipsum}%% a garbage package you don't need except to create examples.
+\usepackage{fancyhdr}
+\pagestyle{fancy}
+\lhead{Lucky Immanuel S [122140179], Rachel Olivia Manullang [122140181], Eric Arwido Damanik [122140157]}
+\rhead{ \thepage}
+\cfoot{\textbf{FaceFit Blink Challenge}}
+\renewcommand{\headrulewidth}{0.4pt}
+\renewcommand{\footrulewidth}{0.4pt}
+
+%%%%%%%%%%%%%%  Shortcut for usual set of numbers  %%%%%%%%%%%
+
+\newcommand{\N}{\mathbb{N}}
+\newcommand{\Z}{\mathbb{Z}}
+\newcommand{\Q}{\mathbb{Q}}
+\newcommand{\R}{\mathbb{R}}
+\newcommand{\C}{\mathbb{C}}
+\setlength\headheight{30pt}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%555
+\begin{document}
+\thispagestyle{empty}
+\begin{center}
+	\includegraphics[scale = 0.15]{Figure/ifitera-header.png}
+	\vspace{0.1cm}
+\end{center}
+\noindent
+\rule{17cm}{0.2cm}\\[0.3cm]
+Nama: \student \hfill \\
+Tugas Ke: \assignment\\[0.1cm]
+Mata Kuliah: \course \hfill Tanggal: 09 Desember 2025\\
+\rule{17cm}{0.05cm}
+\vspace{0.1cm}
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% BODY DOCUMENT %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Deskripsi Proyek}
+    Proyek ini dirancang untuk menunjukkan bagaimana teknologi pemrosesan visual dapat dikombinasikan dengan elemen permainan (game mechanics) untuk menghasilkan bentuk interaksi yang bersifat natural, intuitif, dan real-time. Dalam konteks multimedia, aplikasi ini tidak hanya mengolah gambar secara statis, melainkan memanfaatkan aliran data visual langsung dari kamera, kemudian memprosesnya menjadi informasi bermakna yang digunakan sebagai input permainan.
+
+    Permainan ini menggunakan teknologi visi komputer untuk mendeteksi wajah dan kedipan mata sebagai metode interaksi utama. Pemain harus mengedipkan mata pada waktu yang tepat untuk menghentikan bagian-bagian wajah yang jatuh dari sisi atas layar dan menempelkannya pada posisi landmark wajah mereka sendiri. Dengan demikian, FaceFit Blink Challenge mengintegrasikan tiga elemen multimedia inti secara bersamaan: citra real-time, interaksi berbasis ekspresi wajah, dan grafik permainan yang bergerak dinamis.
+
+    Pengembangan proyek ini juga menjadi wadah penerapan materi teoretis seperti pengolahan citra digital, deteksi fitur wajah, analisis visual berbasis landmark, serta integrasi multimodal input pada sistem interaktif. Selain itu, proyek ini menunjukkan bagaimana sinkronisasi antara deteksi kamera dan tampilan grafis dapat membentuk pengalaman multimedia yang responsif dan menarik.
+
+\section{Teknologi}
+Dalam membangun FaceFit Blink Challenge, digunakan beberapa teknologi inti yang mendukung pengolahan visual dan interaksi real-time. Python dipilih sebagai bahasa utama karena fleksibilitasnya serta ketersediaan pustaka yang kuat dalam pengolahan citra maupun pengembangan aplikasi multimedia.
+
+OpenCV digunakan untuk menangani pengambilan frame dari kamera dan menyediakan berbagai fungsi dasar pengolahan citra. MediaPipe Face Mesh merupakan komponen utama dalam deteksi wajah, menghasilkan 468 landmark wajah berpresisi tinggi yang kemudian dianalisis untuk menentukan posisi fitur wajah serta mendeteksi kedipan melalui perhitungan rasio mata.
+
+Pada sisi grafis, Pygame digunakan untuk membangun lingkungan permainan, merender objek bagian wajah yang jatuh, menampilkan antarmuka visual, dan mengelola game loop. Integrasi antara hasil deteksi wajah dan Pygame memungkinkan sistem menampilkan dinamika permainan secara sinkron dengan pergerakan dan ekspresi wajah pemain.
+
+Teknologi-teknologi tersebut menunjukkan bagaimana konsep dalam Teknologi Multimedia seperti pemrosesan multimodal input, sinkronisasi media, dan real-time rendering dapat diterapkan dalam satu aplikasi yang koheren. Proyek ini menjadi contoh konkret penerapan teknologi multimedia modern berbasis visi komputer.
+ 
+
+\newpage
+\section{Cara Kerja}
+Bagian ini menjelaskan alur kerja FaceFit Blink Challenge secara sistematis dan runtut, menggambarkan bagaimana data kamera diproses dan bagaimana interaksi permainan terjadi berdasarkan kedipan mata pengguna.
+
+\begin{itemize}
+    \item \textbf{Pengambilan Frame Kamera} \\
+    Sistem dimulai dengan mengaktifkan kamera untuk mengambil frame secara berkelanjutan. Frame mentah ini menjadi sumber data utama bagi proses deteksi wajah dan interaksi permainan.
+
+    \item \textbf{Konversi Frame dan Pemrosesan Awal} \\
+    Setiap frame dikonversi dari format BGR ke RGB agar kompatibel dengan pipeline MediaPipe. Konversi ini memastikan proses deteksi wajah bekerja optimal.
+
+    \item \textbf{Deteksi Landmark Menggunakan MediaPipe Face Mesh} \\
+    Frame yang telah diproses masuk ke Face Mesh untuk menghasilkan ratusan landmark wajah. Landmark-landmark ini digunakan untuk menentukan posisi mata, hidung, alis, dan mulut.
+
+    \item \textbf{Perhitungan Rasio Kedipan Mata} \\
+    Sistem menghitung jarak antar kelopak mata dibandingkan dengan lebar mata. Jika rasio turun di bawah ambang tertentu, sistem mengenali kondisi tersebut sebagai kedipan.
+
+    \item \textbf{Render Bagian Wajah yang Jatuh} \\
+    Pada sisi permainan, Pygame merender bagian wajah yang jatuh secara terus-menerus. Posisi setiap objek diperbarui sesuai kecepatan jatuh yang ditentukan.
+
+    \item \textbf{Pengecekan Overlap antara Objek dan Landmark} \\
+    Saat bagian wajah jatuh mendekati area landmark yang sesuai, sistem mengecek apakah terjadi overlap. Overlap menandakan bahwa objek berada pada posisi siap ditempelkan.
+
+    \item \textbf{Konfirmasi melalui Deteksi Kedipan} \\
+    Sistem menunggu kedipan pengguna sebagai bentuk persetujuan. Jika kedipan terjadi pada waktu yang tepat, objek dihentikan dan ditempelkan pada posisi landmark.
+
+    \item \textbf{Penempelan Objek dan Pembaruan Status Permainan} \\
+    Setelah objek menempel, statusnya berubah menjadi terpasang. Sistem kemudian memeriksa apakah seluruh bagian wajah telah lengkap untuk menentukan akhir permainan.
+
+    \item \textbf{Siklus Game Loop} \\
+    Semua proses di atas berjalan berulang dalam game loop, memungkinkan permainan berlangsung secara interaktif dan responsif terhadap ekspresi wajah pemain.
+\end{itemize}
+
+
+\section{Penjelasan Kode Program}
+Pada bagian ini dijelaskan modul-modul utama yang menyusun FaceFit Blink Challenge beserta contoh potongan kode dan penjelasan baris demi baris.
+
+\subsection{Struktur Berkas Utama}
+
+\begin{itemize}
+    \item main.py – menjalankan game loop dan menghubungkan kamera serta modul deteksi wajah.
+
+    \item face\_processing.py – bertanggung jawab terhadap deteksi wajah, landmark, dan kedipan.
+
+    \item game\_controller.py – mengatur logika permainan dan interaksi dengan hasil deteksi wajah.
+
+    \item falling\_face\_part.py – mendefinisikan objek bagian wajah yang jatuh.
+
+    \item constants.py – menyimpan nilai konfigurasi permainan.
+\end{itemize}
+
+\subsection{Penjelasan File main.py}
+    \begin{lstlisting}
+        from game_controller import GameController
+
+def main():
+    game = GameController()
+    game.run()
+
+if __name__ == '__main__':
+    main()
+\end{lstlisting}
+    Penjelasan: 
+    Ketika program dijalankan, Python mengecek apakah file tersebut dipanggil langsung. Jika benar, fungsi main() dipanggil untuk membuat sebuah instance GameController. Selanjutnya, metode run() dimulai, dan dari sinilah seluruh siklus permainan berjalan: membaca input kamera, memperbarui objek jatuh, memeriksa kondisi kedipan, dan merender tampilan permainan. Dengan struktur ini, program lebih mudah dipelihara karena titik awal program terpusat di satu lokasi.
+\subsection{Penjelasan File face\_processing.py}
+    \begin{lstlisting}
+    self.mp_face_mesh = mp.solutions.face_mesh
+self.face_mesh = self.mp_face_mesh.FaceMesh(
+    max_num_faces=1,
+    refine_landmarks=True,
+    min_detection_confidence=0.5,
+    min_tracking_confidence=0.5
+)\end{lstlisting}
+Penjelasan Fungsi : 
+Kode di atas mengonfigurasi pipeline MediaPipe Face Mesh agar dapat mendeteksi satu wajah secara real-time dengan akurasi tinggi. Parameter refine\_landmarks=True penting karena meningkatkan presisi landmark mata, hidung, dan bibir fitur krusial untuk permainan ini. Kedua parameter confidence memastikan deteksi stabil meskipun pencahayaan berubah.
+
+Contoh deteksi kedipan:
+     \begin{lstlisting}
+        ratio = (upper - lower) / width
+    if ratio < BLINK_THRESHOLD:
+    return True\end{lstlisting}
+
+Sistem menghitung Eye Aspect Ratio (EAR) sederhana berdasarkan jarak kelopak atas dan bawah, kemudian dibandingkan dengan lebar mata. Ketika mata menutup, jarak vertikal mengecil drastis sehingga rasio turun di bawah threshold. Deteksi kedipan menjadi input utama permainan karena menggantikan tombol keyboard sebagai metode interaksi — sesuai konsep natural user interface.
+
+\subsection{Penjelasan File falling\_face\_part.py}
+    \begin{lstlisting}
+        class FallingFacePart:
+    def __init__(self, image, position, speed):
+        self.image = image
+        self.x, self.y = position
+        self.speed = speed
+        self.attached = False
+
+    def update(self):
+        if not self.attached:
+            self.y += self.speed\end{lstlisting}
+    Penjelasan Fungsi : 
+    Kelas ini mengenkapsulasi state dari sebuah bagian wajah seperti sprite gambar, posisi, kecepatan jatuh, dan apakah objek tersebut sudah ditempel ke wajah. Ketika attached=True, objek tidak lagi bergerak. Konsep stateful object ini mempermudah pengelolaan proses jatuh dan penempelan objek.
+
+\subsection{Penjelasan File game\_controller.py}
+    \begin{lstlisting}
+        for part in self.falling_parts:
+    part.update()
+    if not part.attached and self.is_overlapping(part, target_pos):
+        if blink_detected:
+            part.attach(target_pos)\end{lstlisting}
+    Penjelasan Fungsi : 
+    Setiap iterasi game loop
+\begin{itemize}
+    \item objek jatuh diperbarui posisinya,
+
+    \item sistem memeriksa apakah koordinat objek berimpit dengan landmark wajah,
+
+    \item jika kondisi overlap terjadi, program menunggu kedipan mata sebagai sinyal konfirmasi,
+
+    \item ketika kedipan terdeteksi, objek ditempel pada posisi landmark yang sesuai.
+\end{itemize}
+Logika ini memadukan deteksi visual dan kontrol permainan secara sinkron.
+
+\subsection{Penjelasan File constants.py}
+    \begin{lstlisting}
+        BLINK_THRESHOLD = 0.20
+    SCREEN_WIDTH = 1280
+    SCREEN_HEIGHT = 720
+    FACE_PART_SPEED = 5\end{lstlisting}
+        Penjelasan Fungsi : 
+        File ini berisi nilai parametris yang menjaga konsistensi permainan. Threshold kedipan harus disesuaikan dengan intensitas lipatan mata pengguna dan jarak ke kamera.
+        
+    
+\section{Hasil Analisis}
+\subsection{Program Utama}
+   Program utama dibangun dengan pendekatan modular, di mana setiap komponen menjalankan tugasnya masing-masing namun terhubung melalui game loop di file main.py. Secara umum, alur utama aplikasi melibatkan:Inisialisasi modul deteksi wajah, Inisialisasi permainan, Pembacaan input kamera secara real-time, Pemrosesan landmark dan deteksi kedipan, Pembaruan objek permainan, Render tampilan ke layar, dan Sinkronisasi antar modul hingga permainan selesai.
+   Dengan arsitektur ini, sistem dapat memproses input visual secara responsif tanpa mengganggu performa permainan.
+   Berikut adalah isi kode program utama:
+    \begin{lstlisting}[language=Python, caption=Program Utama Permainan]
+from game_controller import GameController
+
+def main():
+    game = GameController()   # Inisialisasi game controller
+    game.run()                # Memulai loop permainan
+
+if __name__ == "__main__":
+    main() 
+\end{lstlisting}
+
+\subsection{Deskripsi Kode}
+Kode program utama sengaja dibuat ringkas agar fokus pengendalian berada pada kelas GameController. Fungsi main() bertujuan:
+
+\begin{enumerate}
+    \item \textbf{Membuat instance GameController:} \\
+    Objek ini berisi seluruh komponen permainan seperti loader sprite, kamera, detektor wajah, dan daftar objek jatuh.
+
+    \item \textbf{Menjalankan game loop:} \\
+    Metode run() memulai siklus pembacaan frame kamera, pemrosesan kedipan, serta penggambaran tampilan pada layar.
+\end{enumerate}
+Dengan desain ini, file utama menjadi titik masuk eksekusi yang bersih dan mudah dipelihara.
+
+\subsection{Alur Eksekusi Program Utama}
+Secara detail, alur eksekusi saat game.run() dipanggil adalah sebagai berikut:
+
+\begin{enumerate}
+    \item \textbf{Inisialisasi kamera} \\
+    Sistem membuka akses webcam dan memulai pipeline Face Mesh.
+
+    \item \textbf{Loop permainan dimulai} \\
+    Program terus berjalan selama window permainan masih aktif.
+
+    \item \textbf{Frame kamera dibaca dan diolah} \\
+    Setiap iterasi, gambar yang masuk dikonversi menjadi RGB untuk diproses oleh MediaPipe.
+
+    \item \textbf{Deteksi wajah dan landmark dilakukan} \\
+    Model Face Mesh menghasilkan koordinat 468 titik wajah.
+
+    \item \textbf{Deteksi kedipan dihitung} \\
+    EAR (Eye Aspect Ratio) dihitung.
+    Jika EAR < threshold → kedipan terdeteksi.
+
+    \item \textbf{Update posisi objek jatuh} \\
+    Setiap objek diperbarui posisinya sesuai kecepatan gravitasi.
+
+    \item \textbf{Cek overlap antara objek dengan wajah} \\
+    Sistem menentukan apakah objek berada tepat di posisi landmark yang sesuai.
+
+    \item \textbf{Jika overlap + kedipan → objek ditempelkan} \\
+    Objek tidak lagi jatuh dan menyatu dengan wajah sesuai aturan permainan.
+
+    \item \textbf{Frame ditampilkan ke layar} \\
+    Kamera dan objek digabungkan menjadi satu tampilan permainan.
+
+    \item \textbf{Loop berulang hingga kondisi selesai} \\
+    Pemain dapat menekan tombol keluar atau menyelesaikan semua bagian wajah.
+\end{enumerate}
+
+\subsection{Integrasi Antar Modul}
+Modul–modul sistem bekerja saling terhubung sebagai berikut:
+
+\begin{itemize}
+    \item face\_processing.py menyediakan data landmark serta status kedipan.
+
+    \item falling\_face\_part.py mengatur posisi bagian wajah yang jatuh.
+
+    \item game\_controller.py membaca input dari face\_processing.py, memperbarui objek jatuh, lalu merender gambar.
+
+    \item main.py memanggil seluruh proses secara terstruktur.
+
+    \item Integrasi ini mendukung pipeline multimedia: capture → process → update → render.
+\end{itemize}
+
+\subsection{Output dan Tampilan Program}
+Program menampilkan:
+
+\begin{enumerate}
+    \item \textbf{Video kamera real-time} \\
+    Wajah pengguna terlihat sebagai latar belakang permainan.
+
+    \item \textbf{Objek bagian wajah yang jatuh} \\
+    Seperti mata, hidung, dan mulut.
+
+    \item \textbf{Penempelan objek saat kedipan terdeteksi} \\
+    Ketika pemain berkedip tepat waktu, objek otomatis menempel pada landmark yang sesuai.
+
+    \item \textbf{Indikator Debug (Opsional)} \\
+    Berupa titik landmark wajah untuk memudahkan pengembangan.
+
+    \item \textbf{Skor / Progress Level (Opsional)} \\
+    Menunjukkan bagian wajah mana yang sudah ditempelkan.
+\end{enumerate}
+
+\subsection{Analisis Implementasi}
+Hasil implementasi menunjukkan bahwa:
+
+\begin{enumerate}
+    \item \textbf{Sistem mampu memproses input real-time dengan stabil.}
+
+    \item \textbf{Deteksi kedipan bekerja dengan cepat dan tingkat akurasi baik.}
+
+    \item \textbf{Integrasi antara deteksi wajah dan logika permainan berjalan sinkron.}
+
+    \item \textbf{Proses rendering tidak mengalami penurunan FPS yang berarti.}
+
+    \item \textbf{Pengguna dapat berinteraksi secara natural tanpa perangkat tambahan.}
+\end{enumerate}
+     
+\section{Implementasi Program}
+
+\subsection{Persiapan Lingkungan}
+    Program dijalankan pada Python 3.11 dengan pustaka OpenCV, MediaPipe, dan Pygame. Semua dependensi tersedia di file requirements.txt.
+
+\subsection{Instalasi}
+    \begin{lstlisting}[language=Python]
+git clone https://github.com/Youngstg/FaceFit-Blink-Challenge.git
+cd FaceFit-Blink-Challenge
+py -3.11 -m venv .venv
+.\.venv\Scripts\activate
+pip install -r requirements.txt
+\end{lstlisting}
+    
+\subsection{Menjalankan Program}
+     \begin{lstlisting}
+       python main.py\end{lstlisting}
+
+\subsection{Jalankan Program}
+    \begin{lstlisting}
+        python main.py\end{lstlisting}
+    File main.py akan menjalankan program secara real-time
+    Rekan tombol "S" untuk memulai program
+    
+    
+    \begin{figure}[H]
+    \centering
+    \includegraphics[width=0.8\textwidth]{Figure/tampilan awal.jpg}
+    \caption{Tampilan awal antarmuka}
+    \label{fig:tampilan_awal}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.8\textwidth]{Figure/RedLight.jpg}
+    \caption{Pemain Dilarang Bersuara}
+    \label{fig:monitoring}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.8\textwidth]{Figure/GreenLight.jpg }
+    \caption{Pemain harus bersuara}
+    \label{fig:manual_detection}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.8\textwidth]{Figure/gameover.jpg}
+    \caption{Permainan Berakhir}
+    \label{fig:signal_plots}
+\end{figure}
+
+\begin{itemize}
+     \item layar akan menampilkan keterangan jika 'S' untuk memulai, dan Spasi untuk Pause.
+    
+    \item game pada permainan akan mendeteksi suara jika terlalu keras maka lampu merah menyala, mario akan langsung tereliminasi.
+
+    \item sebaliknya saat lampu hijau menyala dan suara cukup kuat, maka mario akan bergerak maju.
+
+    \item stelah pemain menyelesaikan game, akan muncul pilihan "play Again" atau "Exit".
+\end{itemize}
+    
+\end{document}
