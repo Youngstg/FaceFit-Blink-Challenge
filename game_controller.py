@@ -567,30 +567,100 @@ class FaceFilterGame:
             frame,
             (camera_x, camera_y),
             (camera_x + camera_width, camera_y + camera_height),
-            (255, 255, 255),  # White border
+            (255, 255, 255),
             2
         )
         
-        # Display logo image (smiley face dari assets) di atas area camera
-        logo_img = self._svg_loader.load_svg_as_png("image-removebg-preview (2) 1.png", 120, 120)
-        if logo_img is not None:
-            logo_x = frame_width // 2 - 60
-            logo_y = camera_y - 150
-            self._paste_image_with_alpha(frame, logo_img, logo_x, logo_y)
-        
-        # Display title text "FACEFIT BLINK CHALLENGE" di atas area camera
-        cv2.putText(
-            frame,
-            "FACEFIT BLINK CHALLENGE",
-            (frame_width // 2 - 250, camera_y - 40),
-            cv2.FONT_HERSHEY_SIMPLEX,
-            1.2,
-            (62, 252, 169),
-            2,
+        # === LOGO IMAGE - DIPERBESAR DAN DITURUNKAN ===
+        logo_width = 761
+        logo_height = 287
+        logo_img = self._svg_loader.load_svg_as_png(
+            "image-removebg-preview (2) 1.png", 
+            logo_width, 
+            logo_height
         )
         
-        # Draw START button di bawah area camera
-        button_y = camera_y + camera_height + 40
+        if logo_img is not None:
+            # Posisi logo - diturunkan lebih dekat ke camera area
+            logo_x = frame_width // 2 - logo_width // 2  # Center horizontal
+            logo_y = camera_y - 10
+            
+            self._paste_image_with_alpha(frame, logo_img, logo_x, logo_y)
+        
+        # === TEKS SELAMAT DATANG DAN CARA BERMAIN ===
+        # Posisi Y mulai dari bawah logo
+        text_start_y = logo_y + logo_height + 30  # 30px spacing dari logo
+        
+        # Font settings (OpenCV tidak support Poppins langsung, gunakan HERSHEY_SIMPLEX yang clean)
+        font = cv2.FONT_HERSHEY_SIMPLEX
+        color_black = (0, 0, 0)  # Hitam dalam BGR
+        
+        # # Judul "Selamat Datang"
+        # title_text = "Selamat Datang"
+        # title_size = 1.2
+        # title_thickness = 2
+        # title_width = cv2.getTextSize(title_text, font, title_size, title_thickness)[0][0]
+        # title_x = frame_width // 2 - title_width // 2
+        # cv2.putText(
+        #     frame,
+        #     title_text,
+        #     (title_x, text_start_y),
+        #     font,
+        #     title_size,
+        #     color_black,
+        #     title_thickness,
+        #     cv2.LINE_AA
+        # )
+        
+        # Subtitle "Cara Bermain"
+        subtitle_y = text_start_y + 50
+        subtitle_text = "Cara Bermain"
+        subtitle_size = 0.9
+        subtitle_thickness = 2
+        subtitle_width = cv2.getTextSize(subtitle_text, font, subtitle_size, subtitle_thickness)[0][0]
+        subtitle_x = frame_width // 2 - subtitle_width // 2
+        cv2.putText(
+            frame,
+            subtitle_text,
+            (subtitle_x, subtitle_y),
+            font,
+            subtitle_size,
+            color_black,
+            subtitle_thickness,
+            cv2.LINE_AA
+        )
+        
+        # Deskripsi (multi-line)
+        desc_y = subtitle_y + 40
+        desc_size = 0.55
+        desc_thickness = 1
+        desc_line_spacing = 30
+        
+        # Teks deskripsi dibagi per baris
+        desc_lines = [
+            "Pemain harus mengedipkan mata tepat waktu",
+            "agar bagian yang jatuh berhenti dan menempel",
+            "di posisi wajah yang sesuai, sampai wajah",
+            "tersusun lengkap secara real time."
+        ]
+        
+        for i, line in enumerate(desc_lines):
+            line_width = cv2.getTextSize(line, font, desc_size, desc_thickness)[0][0]
+            line_x = frame_width // 2 - line_width // 2
+            line_y = desc_y + (i * desc_line_spacing)
+            cv2.putText(
+                frame,
+                line,
+                (line_x, line_y),
+                font,
+                desc_size,
+                color_black,
+                desc_thickness,
+                cv2.LINE_AA
+            )
+        
+        # Draw START button - di bawah teks
+        button_y = desc_y + (len(desc_lines) * desc_line_spacing) + 40
         self._draw_svg_button_combined(frame, frame_width, button_y)
 
     def _draw_svg_button_combined(self, frame: np.ndarray, frame_width: int, button_y: int) -> None:
