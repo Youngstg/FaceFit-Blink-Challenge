@@ -158,15 +158,25 @@ class FaceFilterGame:
             # Loop utama game
             first_frame = True
             while capture.isOpened():
-                frame_available, frame = capture.read()  # Baca frame dari kamera
+                frame_available, frame = capture.read()
                 if not frame_available:
                     break
 
                 # Flip frame agar seperti cermin
                 frame = cv2.flip(frame, 1)
                 
-                # Create fullscreen display frame dengan cream background
-                display_frame = np.full((fullscreen_height, fullscreen_width, 3), (198, 230, 255), dtype=np.uint8)
+                # === BUAT BACKGROUND GRADIEN CYAN KE BIRU TUA ===
+                display_frame = np.zeros((fullscreen_height, fullscreen_width, 3), dtype=np.uint8)
+                
+                # Warna gradien (sama seperti menu)
+                color_start = np.array([255, 230, 168], dtype=np.float32)  # Cyan
+                color_end = np.array([138, 58, 30], dtype=np.float32)  # Biru tua
+                
+                # Buat gradien vertikal
+                for y in range(fullscreen_height):
+                    ratio = y / fullscreen_height
+                    color = color_start * (1 - ratio) + color_end * ratio
+                    display_frame[y, :] = color.astype(np.uint8)
                 
                 # Resize camera frame ke camera area size
                 resized_frame = cv2.resize(frame, (camera_width, camera_height))
@@ -553,25 +563,80 @@ class FaceFilterGame:
         frame_height: int,
     ) -> None:
         """Tampilkan menu dengan background cream dan dekorasi UI."""
-        # Fill fullscreen dengan warna cream (#FFE6C6 = RGB: 255, 230, 198)
-        cream_color = (198, 230, 255)  # BGR format
-        frame[:] = cream_color
+        # === BUAT BACKGROUND GRADIEN DARI CYAN KE BIRU TUA ===
+        # Warna awal (cyan/biru muda #A8E6FF ≈ RGB: 168, 230, 255) dan akhir (biru tua #1E3A8A ≈ RGB: 30, 58, 138)
+        color_start = np.array([255, 230, 168], dtype=np.float32)  # Cyan (BGR)
+        color_end = np.array([138, 58, 30], dtype=np.float32)  # Biru tua (BGR)
+        
+        # Buat gradien vertikal (atas ke bawah)
+        for y in range(frame_height):
+            # Hitung ratio posisi (0.0 di atas, 1.0 di bawah)
+            ratio = y / frame_height
+            
+            # Interpolasi warna
+            color = color_start * (1 - ratio) + color_end * ratio
+            
+            # Set seluruh baris dengan warna yang sama
+            frame[y, :] = color.astype(np.uint8)
         
         # Camera area di tengah: 950x800
         camera_width, camera_height = 950, 800
         camera_x = (frame_width - camera_width) // 2
         camera_y = (frame_height - camera_height) // 2
         
-        # Draw camera area border (white/light background untuk delineasi)
+        # Draw camera area border dengan rounded corners (putih dengan shadow)
+        # Untuk rounded rectangle, kita bisa draw manual atau gunakan overlay
+        overlay = frame.copy()
+        corner_radius = 30
+        
+        # Draw filled rounded rectangle untuk background putih
+        pts = [
+            # Top edge dengan rounded corners
+            (camera_x + corner_radius, camera_y),
+            (camera_x + camera_width - corner_radius, camera_y),
+            # Right edge dengan rounded corners
+            (camera_x + camera_width, camera_y + corner_radius),
+            (camera_x + camera_width, camera_y + camera_height - corner_radius),
+            # Bottom edge dengan rounded corners
+            (camera_x + camera_width - corner_radius, camera_y + camera_height),
+            (camera_x + corner_radius, camera_y + camera_height),
+            # Left edge dengan rounded corners
+            (camera_x, camera_y + camera_height - corner_radius),
+            (camera_x, camera_y + corner_radius),
+        ]
+        
+        # Gambar rectangle dengan rounded corners (sederhana: pakai rectangle + circles di corners)
         cv2.rectangle(
-            frame,
-            (camera_x, camera_y),
-            (camera_x + camera_width, camera_y + camera_height),
+            overlay,
+            (camera_x + corner_radius, camera_y),
+            (camera_x + camera_width - corner_radius, camera_y + camera_height),
             (255, 255, 255),
-            2
+            -1  # Filled
+        )
+        cv2.rectangle(
+            overlay,
+            (camera_x, camera_y + corner_radius),
+            (camera_x + camera_width, camera_y + camera_height - corner_radius),
+            (255, 255, 255),
+            -1  # Filled
         )
         
-        # === LOGO IMAGE - DIPERBESAR DAN DITURUNKAN ===
+        # Draw circles di 4 corners
+        cv2.circle(overlay, (camera_x + corner_radius, camera_y + corner_radius), corner_radius, (255, 255, 255), -1)
+        cv2.circle(overlay, (camera_x + camera_width - corner_radius, camera_y + corner_radius), corner_radius, (255, 255, 255), -1)
+        cv2.circle(overlay, (camera_x + corner_radius, camera_y + camera_height - corner_radius), corner_radius, (255, 255, 255), -1)
+        cv2.circle(overlay, (camera_x + camera_width - corner_radius, camera_y + camera_height - corner_radius), corner_radius, (255, 255, 255), -1)
+        
+        # Blend overlay dengan transparency
+        alpha = 0.95
+        cv2.addWeighted(overlay, alpha, frame, 1 - alpha, 0, frame)
+        
+        # Draw border outline
+        # Untuk rounded rectangle outline, gunakan polylines atau approx dengan circles
+        border_color = (200, 200, 200)  # Abu-abu terang
+        border_thickness = 3
+
+        # === LOGO IMAGE ===
         logo_width = 761
         logo_height = 287
         logo_img = self._svg_loader.load_svg_as_png(
@@ -581,93 +646,68 @@ class FaceFilterGame:
         )
         
         if logo_img is not None:
-            # Posisi logo - diturunkan lebih dekat ke camera area
-            logo_x = frame_width // 2 - logo_width // 2  # Center horizontal
-            logo_y = camera_y - 10
+            # Posisi logo di tengah atas area putih
+            logo_x = frame_width // 2 - logo_width // 2
+            logo_y = camera_y + 40  # 40px dari top border
             
             self._paste_image_with_alpha(frame, logo_img, logo_x, logo_y)
         
-        # === TEKS SELAMAT DATANG DAN CARA BERMAIN ===
-        # Posisi Y mulai dari bawah logo
-        text_start_y = logo_y + logo_height + 30  # 30px spacing dari logo
+        # === TEKS "Cara Bermain" - DINAIKKAN 50 PIXEL LAGI ===
+        text_start_y = camera_y + 40 + logo_height - 15  # Dikurangi dari 10 menjadi -40 (naik 50px lagi)
         
-        # Font settings (OpenCV tidak support Poppins langsung, gunakan HERSHEY_SIMPLEX yang clean)
         font = cv2.FONT_HERSHEY_SIMPLEX
-        color_black = (0, 0, 0)  # Hitam dalam BGR
+        color_dark_blue = (99, 2, 2)  # Warna #020263 dalam BGR format
         
-        # # Judul "Selamat Datang"
-        # title_text = "Selamat Datang"
-        # title_size = 1.2
-        # title_thickness = 2
-        # title_width = cv2.getTextSize(title_text, font, title_size, title_thickness)[0][0]
-        # title_x = frame_width // 2 - title_width // 2
-        # cv2.putText(
-        #     frame,
-        #     title_text,
-        #     (title_x, text_start_y),
-        #     font,
-        #     title_size,
-        #     color_black,
-        #     title_thickness,
-        #     cv2.LINE_AA
-        # )
-        
-        # Subtitle "Cara Bermain"
-        subtitle_y = text_start_y + 50
+        # Judul "Cara Bermain"
         subtitle_text = "Cara Bermain"
         subtitle_size = 0.9
         subtitle_thickness = 2
         subtitle_width = cv2.getTextSize(subtitle_text, font, subtitle_size, subtitle_thickness)[0][0]
         subtitle_x = frame_width // 2 - subtitle_width // 2
+        subtitle_y = text_start_y
         cv2.putText(
             frame,
             subtitle_text,
             (subtitle_x, subtitle_y),
             font,
             subtitle_size,
-            color_black,
+            color_dark_blue,  # Ubah warna ke #020263
             subtitle_thickness,
             cv2.LINE_AA
         )
         
-        # Deskripsi (multi-line)
-        desc_y = subtitle_y + 40
-        desc_size = 0.55
-        desc_thickness = 1
-        desc_line_spacing = 30
+        # === GAMBAR CARA KERJA - POSISI TETAP (dari subtitle lama) ===
+        # Hitung posisi subtitle yang lama untuk referensi
+        old_subtitle_y = camera_y + 40 + logo_height + 10
+        cara_kerja_y = old_subtitle_y + 20  # 20px spacing dari subtitle lama (posisi tetap)
         
-        # Teks deskripsi dibagi per baris
-        desc_lines = [
-            "Pemain harus mengedipkan mata tepat waktu",
-            "agar bagian yang jatuh berhenti dan menempel",
-            "di posisi wajah yang sesuai, sampai wajah",
-            "tersusun lengkap secara real time."
-        ]
+        # Load gambar cara_kerja.png (sesuaikan ukuran)
+        cara_kerja_width = 219  # Sesuaikan dengan kebutuhan
+        cara_kerja_height = 187   # Sesuaikan dengan kebutuhan
+        cara_kerja_img = self._svg_loader.load_svg_as_png(
+            "cara_kerja.png",
+            cara_kerja_width,
+            cara_kerja_height
+        )
         
-        for i, line in enumerate(desc_lines):
-            line_width = cv2.getTextSize(line, font, desc_size, desc_thickness)[0][0]
-            line_x = frame_width // 2 - line_width // 2
-            line_y = desc_y + (i * desc_line_spacing)
-            cv2.putText(
-                frame,
-                line,
-                (line_x, line_y),
-                font,
-                desc_size,
-                color_black,
-                desc_thickness,
-                cv2.LINE_AA
-            )
+        if cara_kerja_img is not None:
+            cara_kerja_x = frame_width // 2 - cara_kerja_width // 2
+            self._paste_image_with_alpha(frame, cara_kerja_img, cara_kerja_x, cara_kerja_y)
+            
+            # Update button_y untuk di bawah gambar cara_kerja - DITURUNKAN 50 PIXEL LAGI
+            button_y = cara_kerja_y + cara_kerja_height + 100  # Ditambah dari 50 menjadi 100 (turun 50px lagi)
+        else:
+            # Fallback jika gambar tidak ada
+            button_y = subtitle_y + 270  # Juga disesuaikan (220 + 50)
         
-        # Draw START button - di bawah teks
-        button_y = desc_y + (len(desc_lines) * desc_line_spacing) + 40
+        # Draw START button
         self._draw_svg_button_combined(frame, frame_width, button_y)
 
     def _draw_svg_button_combined(self, frame: np.ndarray, frame_width: int, button_y: int) -> None:
         """Draw START button dengan rounded corners dan outline style."""
         # Load START button image (280x70)
         btn_width, btn_height = 280, 70
-        btn_img = self._svg_loader.load_svg_as_png("START_BUTTON.png", btn_width, btn_height)
+        btn_img = self._svg_loader.load_svg_as_png("start.png", btn_width, btn_height)
         
         # Position button di tengah
         btn_x = frame_width // 2 - btn_width // 2
