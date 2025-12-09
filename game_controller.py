@@ -147,6 +147,7 @@ class FaceFilterGame:
         # Store camera area info di class untuk digunakan di state methods
         self._camera_area = (camera_x, camera_y, camera_width, camera_height)
         self._display_offset = (camera_x, camera_y)
+        self._camera_frame_dims = (camera_width, camera_height)
 
         # Inisialisasi face mesh dengan konfigurasi
         with self._face_mesh_solution.FaceMesh(
@@ -163,7 +164,6 @@ class FaceFilterGame:
 
                 # Flip frame agar seperti cermin
                 frame = cv2.flip(frame, 1)
-                cam_height, cam_width, _ = frame.shape
                 
                 # Create fullscreen display frame dengan cream background
                 display_frame = np.full((fullscreen_height, fullscreen_width, 3), (198, 230, 255), dtype=np.uint8)
@@ -174,27 +174,28 @@ class FaceFilterGame:
                 # Paste camera frame ke tengah fullscreen display
                 display_frame[camera_y:camera_y+camera_height, camera_x:camera_x+camera_width] = resized_frame
                 
+                # Create working frame (camera area only) untuk processing
+                working_frame = resized_frame.copy()
+                
                 # Proses berdasarkan state saat ini
                 if self.current_state == STATE_MENU:
                     # State menu dengan tombol START - overlay di atas display_frame
                     self._process_menu_state(display_frame, fullscreen_width, fullscreen_height)
                 else:
-                    # Convert resized frame ke RGB untuk MediaPipe
-                    rgb_frame = cv2.cvtColor(resized_frame, cv2.COLOR_BGR2RGB)
+                    # Convert frame ke RGB untuk MediaPipe
+                    rgb_frame = cv2.cvtColor(working_frame, cv2.COLOR_BGR2RGB)
                     results = face_mesh.process(rgb_frame)  # Proses deteksi wajah
-                    
-                    # Store offset untuk landmark conversion
-                    self._display_offset = (camera_x, camera_y)
-                    self._camera_frame_dims = (camera_width, camera_height)
 
-                    # Proses berdasarkan state saat ini
-                    # Note: Gunakan camera_width/height untuk text positioning, bukan fullscreen dims
+                    # Proses berdasarkan state saat ini (dengan working_frame yang hanya camera area)
                     if self.current_state == STATE_CAPTURE:
                         # State untuk mengcapture bagian wajah
-                        self._process_capture_state(display_frame, results, camera_width, camera_height)
+                        self._process_capture_state(working_frame, results, camera_width, camera_height)
                     else:
                         # State untuk bermain (menjatuhkan dan menangkap bagian wajah)
-                        self._process_play_state(display_frame, results, camera_width, camera_height)
+                        self._process_play_state(working_frame, results, camera_width, camera_height)
+                    
+                    # Copy processed working frame kembali ke display frame
+                    display_frame[camera_y:camera_y+camera_height, camera_x:camera_x+camera_width] = working_frame
 
                 # Tampilkan frame
                 if first_frame:
@@ -263,7 +264,6 @@ class FaceFilterGame:
 
             # Jika countdown belum selesai, tampilkan prompt & progress sampel
             if self.capture_countdown > 0:
-                offset_x, offset_y = self._display_offset if hasattr(self, '_display_offset') else (0, 0)
                 self._draw_capture_prompt(
                     frame,
                     frame_width,
@@ -271,8 +271,6 @@ class FaceFilterGame:
                     self.capture_countdown,
                     len(self._ear_samples),
                     EAR_DYNAMIC_SAMPLES,
-                    offset_x,
-                    offset_y,
                 )
                 return
 
@@ -296,11 +294,10 @@ class FaceFilterGame:
             self._spawn_next_falling_object(frame_width, frame_height)
         else:
             # Tidak ada wajah terdeteksi
-            offset_x, offset_y = self._display_offset if hasattr(self, '_display_offset') else (0, 0)
             cv2.putText(
                 frame,
                 "Tidak ada wajah terdeteksi!",
-                (offset_x + frame_width // 2 - 200, offset_y + frame_height // 2),
+                (frame_width // 2 - 200, frame_height // 2),
                 cv2.FONT_HERSHEY_SIMPLEX,
                 1,
                 (0, 0, 255),
@@ -356,13 +353,11 @@ class FaceFilterGame:
             self._blink_active = False
             self._last_landmarks = None
 
-        offset_x, offset_y = self._display_offset if hasattr(self, '_display_offset') else (0, 0)
-
         if blink_display:
             cv2.putText(
                 frame,
                 "BLINK!",
-                (offset_x + frame_width - 150, offset_y + 50),
+                (frame_width - 150, 50),
                 cv2.FONT_HERSHEY_SIMPLEX,
                 1,
                 (0, 255, 0),
@@ -372,7 +367,7 @@ class FaceFilterGame:
         cv2.putText(
             frame,
             f"EAR th={self._ear_threshold:.2f}",
-            (offset_x + frame_width - 170, offset_y + 80),
+            (frame_width - 170, 80),
             cv2.FONT_HERSHEY_SIMPLEX,
             0.5,
             (255, 255, 0),
@@ -486,14 +481,12 @@ class FaceFilterGame:
         remaining_seconds: int,
         ear_collected: int,
         ear_target: int,
-        offset_x: int = 0,
-        offset_y: int = 0,
     ) -> None:
-        """Tampilkan countdown dan instruksi sebelum capture. Drawing pada camera area."""
+        """Tampilkan countdown dan instruksi sebelum capture."""
         cv2.putText(
             frame,
             f"Capture dalam {remaining_seconds}...",
-            (offset_x + frame_width // 2 - 150, offset_y + frame_height // 2),
+            (frame_width // 2 - 150, frame_height // 2),
             cv2.FONT_HERSHEY_SIMPLEX,
             1.5,
             (0, 255, 255),
@@ -502,7 +495,7 @@ class FaceFilterGame:
         cv2.putText(
             frame,
             "Tunjukkan wajah Anda!",
-            (offset_x + frame_width // 2 - 150, offset_y + frame_height // 2 + 50),
+            (frame_width // 2 - 150, frame_height // 2 + 50),
             cv2.FONT_HERSHEY_SIMPLEX,
             0.8,
             (255, 255, 255),
@@ -511,7 +504,7 @@ class FaceFilterGame:
         cv2.putText(
             frame,
             f"Kalibrasi EAR: {ear_collected}/{ear_target}",
-            (offset_x + frame_width // 2 - 160, offset_y + frame_height // 2 + 90),
+            (frame_width // 2 - 160, frame_height // 2 + 90),
             cv2.FONT_HERSHEY_SIMPLEX,
             0.6,
             (200, 255, 200),
@@ -519,14 +512,12 @@ class FaceFilterGame:
         )
 
     def _draw_game_hud(self, frame: np.ndarray, frame_width: int, frame_height: int) -> None:
-        """Tampilkan HUD game (instruksi dan progress). Drawing pada camera area."""
-        offset_x, offset_y = self._display_offset if hasattr(self, '_display_offset') else (0, 0)
-        
+        """Tampilkan HUD game (instruksi dan progress)."""
         # Instruksi cara bermain
         cv2.putText(
             frame,
             "Kedipkan mata untuk menangkap!",
-            (offset_x + 10, offset_y + 30),
+            (10, 30),
             cv2.FONT_HERSHEY_SIMPLEX,
             0.7,
             (255, 255, 255),
@@ -536,7 +527,7 @@ class FaceFilterGame:
         cv2.putText(
             frame,
             f"Bagian: {self.current_part_index}/{len(self._part_sequence)}",
-            (offset_x + 10, offset_y + 60),
+            (10, 60),
             cv2.FONT_HERSHEY_SIMPLEX,
             0.6,
             (255, 255, 255),
@@ -548,7 +539,7 @@ class FaceFilterGame:
             cv2.putText(
                 frame,
                 "SELESAI! Tekan 'R' untuk reset",
-                (offset_x + frame_width // 2 - 200, offset_y + frame_height - 50),
+                (frame_width // 2 - 200, frame_height - 50),
                 cv2.FONT_HERSHEY_SIMPLEX,
                 0.8,
                 (0, 255, 255),
