@@ -308,7 +308,7 @@ class FaceFilterGame:
                 frame,
                 "Tidak ada wajah terdeteksi!",
                 (frame_width // 2 - 200, frame_height // 2),
-                cv2.FONT_HERSHEY_SIMPLEX,
+                cv2.FONT_HERSHEY_DUPLEX,
                 1,
                 (0, 0, 255),
                 2,
@@ -368,7 +368,7 @@ class FaceFilterGame:
                 frame,
                 "BLINK!",
                 (frame_width - 150, 50),
-                cv2.FONT_HERSHEY_SIMPLEX,
+                cv2.FONT_HERSHEY_DUPLEX,
                 1,
                 (0, 255, 0),
                 2,
@@ -378,7 +378,7 @@ class FaceFilterGame:
             frame,
             f"EAR th={self._ear_threshold:.2f}",
             (frame_width - 170, 80),
-            cv2.FONT_HERSHEY_SIMPLEX,
+            cv2.FONT_HERSHEY_DUPLEX,
             0.5,
             (255, 255, 0),
             1,
@@ -497,7 +497,7 @@ class FaceFilterGame:
             frame,
             f"Capture dalam {remaining_seconds}...",
             (frame_width // 2 - 150, frame_height // 2),
-            cv2.FONT_HERSHEY_SIMPLEX,
+            cv2.FONT_HERSHEY_DUPLEX,
             1.5,
             (0, 255, 255),
             3,
@@ -506,7 +506,7 @@ class FaceFilterGame:
             frame,
             "Tunjukkan wajah Anda!",
             (frame_width // 2 - 150, frame_height // 2 + 50),
-            cv2.FONT_HERSHEY_SIMPLEX,
+            cv2.FONT_HERSHEY_DUPLEX,
             0.8,
             (255, 255, 255),
             2,
@@ -515,7 +515,7 @@ class FaceFilterGame:
             frame,
             f"Kalibrasi EAR: {ear_collected}/{ear_target}",
             (frame_width // 2 - 160, frame_height // 2 + 90),
-            cv2.FONT_HERSHEY_SIMPLEX,
+            cv2.FONT_HERSHEY_DUPLEX,
             0.6,
             (200, 255, 200),
             2,
@@ -528,7 +528,7 @@ class FaceFilterGame:
             frame,
             "Kedipkan mata untuk menangkap!",
             (10, 30),
-            cv2.FONT_HERSHEY_SIMPLEX,
+            cv2.FONT_HERSHEY_DUPLEX,
             0.7,
             (255, 255, 255),
             2,
@@ -538,7 +538,7 @@ class FaceFilterGame:
             frame,
             f"Bagian: {self.current_part_index}/{len(self._part_sequence)}",
             (10, 60),
-            cv2.FONT_HERSHEY_SIMPLEX,
+            cv2.FONT_HERSHEY_DUPLEX,
             0.6,
             (255, 255, 255),
             2,
@@ -550,7 +550,7 @@ class FaceFilterGame:
                 frame,
                 "SELESAI! Tekan 'R' untuk reset",
                 (frame_width // 2 - 200, frame_height - 50),
-                cv2.FONT_HERSHEY_SIMPLEX,
+                cv2.FONT_HERSHEY_DUPLEX,
                 0.8,
                 (0, 255, 255),
                 2,
@@ -655,7 +655,7 @@ class FaceFilterGame:
         # === TEKS "Cara Bermain" - DINAIKKAN 50 PIXEL LAGI ===
         text_start_y = camera_y + 40 + logo_height - 15  # Dikurangi dari 10 menjadi -40 (naik 50px lagi)
         
-        font = cv2.FONT_HERSHEY_SIMPLEX
+        font = cv2.FONT_HERSHEY_DUPLEX
         color_dark_blue = (99, 2, 2)  # Warna #020263 dalam BGR format
         
         # Judul "Cara Bermain"
