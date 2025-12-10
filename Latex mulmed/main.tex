@@ -130,7 +130,7 @@ Mata Kuliah: \course \hfill Tanggal: 09 Desember 2025\\
 \section{Deskripsi Proyek}
     Proyek ini dirancang untuk menunjukkan bagaimana teknologi pemrosesan visual dapat dikombinasikan dengan elemen permainan (game mechanics) untuk menghasilkan bentuk interaksi yang bersifat natural, intuitif, dan real-time. Dalam konteks multimedia, aplikasi ini tidak hanya mengolah gambar secara statis, melainkan memanfaatkan aliran data visual langsung dari kamera, kemudian memprosesnya menjadi informasi bermakna yang digunakan sebagai input permainan.
 
-    Permainan ini menggunakan teknologi visi komputer untuk mendeteksi wajah dan kedipan mata sebagai metode interaksi utama. Pemain harus mengedipkan mata pada waktu yang tepat untuk menghentikan bagian-bagian wajah yang jatuh dari sisi atas layar dan menempelkannya pada posisi landmark wajah mereka sendiri. Dengan demikian, FaceFit Blink Challenge mengintegrasikan tiga elemen multimedia inti secara bersamaan: citra real-time, interaksi berbasis ekspresi wajah, dan grafik permainan yang bergerak dinamis.
+    Permainan ini menggunakan teknologi \textit{Computer Vision} untuk mendeteksi wajah dan kedipan mata sebagai metode interaksi utama. Pemain harus mengedipkan mata pada waktu yang tepat untuk menghentikan bagian-bagian wajah yang jatuh dari sisi atas layar dan menempelkannya pada posisi landmark wajah mereka sendiri. Dengan demikian, FaceFit Blink Challenge mengintegrasikan tiga elemen multimedia inti secara bersamaan: citra real-time, interaksi berbasis ekspresi wajah, dan grafik permainan yang bergerak dinamis.
 
     Pengembangan proyek ini juga menjadi wadah penerapan materi teoretis seperti pengolahan citra digital, deteksi fitur wajah, analisis visual berbasis landmark, serta integrasi multimodal input pada sistem interaktif. Selain itu, proyek ini menunjukkan bagaimana sinkronisasi antara deteksi kamera dan tampilan grafis dapat membentuk pengalaman multimedia yang responsif dan menarik.
 
@@ -142,9 +142,28 @@ OpenCV digunakan untuk menangani pengambilan frame dari kamera dan menyediakan b
 Pada sisi grafis, Pygame digunakan untuk membangun lingkungan permainan, merender objek bagian wajah yang jatuh, menampilkan antarmuka visual, dan mengelola game loop. Integrasi antara hasil deteksi wajah dan Pygame memungkinkan sistem menampilkan dinamika permainan secara sinkron dengan pergerakan dan ekspresi wajah pemain.
 
 Teknologi-teknologi tersebut menunjukkan bagaimana konsep dalam Teknologi Multimedia seperti pemrosesan multimodal input, sinkronisasi media, dan real-time rendering dapat diterapkan dalam satu aplikasi yang koheren. Proyek ini menjadi contoh konkret penerapan teknologi multimedia modern berbasis visi komputer.
+
+\begin{table}[H]
+\centering
+\caption{Stack Teknologi Aplikasi}
+\begin{tabular}{|l|l|p{6cm}|}
+\hline
+\textbf{Komponen} & \textbf{Teknologi} & \textbf{Fungsi} \\
+\hline
+Bahasa Pemrograman & Python 3.11 & Bahasa utama dengan ekosistem library yang kaya \\
+\hline
+Computer Vision & OpenCV 4.10 & Akses kamera, manipulasi gambar, rendering \\
+\hline
+Face Detection & MediaPipe 0.10.21 & Deteksi wajah dan 468 landmark presisi tinggi \\
+\hline
+Komputasi Numerik & NumPy 1.26.4 & Operasi array dan transformasi geometri \\
+\hline
+Audio & Pygame 2.6.1 & Background music dan sound effects \\
+\hline
+\end{tabular}
+\end{table}
  
 
-\newpage
 \section{Cara Kerja}
 Bagian ini menjelaskan alur kerja FaceFit Blink Challenge secara sistematis dan runtut, menggambarkan bagaimana data kamera diproses dan bagaimana interaksi permainan terjadi berdasarkan kedipan mata pengguna.
 
@@ -195,83 +214,466 @@ Pada bagian ini dijelaskan modul-modul utama yang menyusun FaceFit Blink Challen
     \item constants.py – menyimpan nilai konfigurasi permainan.
 \end{itemize}
 
-\subsection{Penjelasan File main.py}
-    \begin{lstlisting}
-        from game_controller import GameController
+\subsection{File main.py}
+File main.py merupakan entry point atau titik masuk utama aplikasi. File ini bertanggung jawab untuk inisialisasi kamera dan menjalankan game loop utama.
 
-def main():
-    game = GameController()
+\begin{lstlisting}[language=Python, caption=Struktur main.py]
+import cv2
+from game_controller import FaceFilterGame
+
+def main() -> None:
+    preferred_index = 1  # Kamera eksternal
+    fallback_index = 0   # Kamera default
+    selected_index = preferred_index
+    
+    # Deteksi kamera tersedia
+    cap = cv2.VideoCapture(preferred_index)
+    if not cap.isOpened():
+        print("Kamera index 1 tidak tersedia")
+        selected_index = fallback_index
+        cap.release()
+        cap = cv2.VideoCapture(fallback_index)
+        if not cap.isOpened():
+            raise RuntimeError("Tidak ada kamera tersedia")
+    cap.release()
+    
+    # Inisialisasi dan jalankan game
+    game = FaceFilterGame(camera_index=selected_index)
     game.run()
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()
 \end{lstlisting}
-    Penjelasan: 
-    Ketika program dijalankan, Python mengecek apakah file tersebut dipanggil langsung. Jika benar, fungsi main() dipanggil untuk membuat sebuah instance GameController. Selanjutnya, metode run() dimulai, dan dari sinilah seluruh siklus permainan berjalan: membaca input kamera, memperbarui objek jatuh, memeriksa kondisi kedipan, dan merender tampilan permainan. Dengan struktur ini, program lebih mudah dipelihara karena titik awal program terpusat di satu lokasi.
-\subsection{Penjelasan File face\_processing.py}
-    \begin{lstlisting}
-    self.mp_face_mesh = mp.solutions.face_mesh
-self.face_mesh = self.mp_face_mesh.FaceMesh(
-    max_num_faces=1,
-    refine_landmarks=True,
-    min_detection_confidence=0.5,
-    min_tracking_confidence=0.5
-)\end{lstlisting}
-Penjelasan Fungsi : 
-Kode di atas mengonfigurasi pipeline MediaPipe Face Mesh agar dapat mendeteksi satu wajah secara real-time dengan akurasi tinggi. Parameter refine\_landmarks=True penting karena meningkatkan presisi landmark mata, hidung, dan bibir fitur krusial untuk permainan ini. Kedua parameter confidence memastikan deteksi stabil meskipun pencahayaan berubah.
 
-Contoh deteksi kedipan:
-     \begin{lstlisting}
-        ratio = (upper - lower) / width
-    if ratio < BLINK_THRESHOLD:
-    return True\end{lstlisting}
-
-Sistem menghitung Eye Aspect Ratio (EAR) sederhana berdasarkan jarak kelopak atas dan bawah, kemudian dibandingkan dengan lebar mata. Ketika mata menutup, jarak vertikal mengecil drastis sehingga rasio turun di bawah threshold. Deteksi kedipan menjadi input utama permainan karena menggantikan tombol keyboard sebagai metode interaksi — sesuai konsep natural user interface.
-
-\subsection{Penjelasan File falling\_face\_part.py}
-    \begin{lstlisting}
-        class FallingFacePart:
-    def __init__(self, image, position, speed):
-        self.image = image
-        self.x, self.y = position
-        self.speed = speed
-        self.attached = False
-
-    def update(self):
-        if not self.attached:
-            self.y += self.speed\end{lstlisting}
-    Penjelasan Fungsi : 
-    Kelas ini mengenkapsulasi state dari sebuah bagian wajah seperti sprite gambar, posisi, kecepatan jatuh, dan apakah objek tersebut sudah ditempel ke wajah. Ketika attached=True, objek tidak lagi bergerak. Konsep stateful object ini mempermudah pengelolaan proses jatuh dan penempelan objek.
-
-\subsection{Penjelasan File game\_controller.py}
-    \begin{lstlisting}
-        for part in self.falling_parts:
-    part.update()
-    if not part.attached and self.is_overlapping(part, target_pos):
-        if blink_detected:
-            part.attach(target_pos)\end{lstlisting}
-    Penjelasan Fungsi : 
-    Setiap iterasi game loop
+\textbf{Penjelasan Fungsi:}
 \begin{itemize}
-    \item objek jatuh diperbarui posisinya,
-
-    \item sistem memeriksa apakah koordinat objek berimpit dengan landmark wajah,
-
-    \item jika kondisi overlap terjadi, program menunggu kedipan mata sebagai sinyal konfirmasi,
-
-    \item ketika kedipan terdeteksi, objek ditempel pada posisi landmark yang sesuai.
+    \item \textbf{Deteksi Kamera Otomatis:} Sistem mencoba membuka kamera eksternal (index 1) terlebih dahulu, jika gagal akan fallback ke kamera default (index 0). Ini memastikan aplikasi dapat berjalan pada berbagai konfigurasi hardware.
+    
+    \item \textbf{Error Handling:} Menggunakan try-except pattern untuk menangani kasus ketika tidak ada kamera yang tersedia, memberikan pesan error yang jelas.
+    
+    \item \textbf{Single Responsibility:} File ini hanya fokus pada inisialisasi hardware, delegasi logika kompleks ke class GameController.
 \end{itemize}
-Logika ini memadukan deteksi visual dan kontrol permainan secara sinkron.
 
-\subsection{Penjelasan File constants.py}
-    \begin{lstlisting}
-        BLINK_THRESHOLD = 0.20
-    SCREEN_WIDTH = 1280
-    SCREEN_HEIGHT = 720
-    FACE_PART_SPEED = 5\end{lstlisting}
-        Penjelasan Fungsi : 
-        File ini berisi nilai parametris yang menjaga konsistensi permainan. Threshold kedipan harus disesuaikan dengan intensitas lipatan mata pengguna dan jarak ke kamera.
+\subsection{File constants.py}
+File ini menyimpan semua konstanta dan parameter konfigurasi sistem dalam satu lokasi terpusat, memudahkan maintenance dan tuning parameter.
+
+\begin{lstlisting}[language=Python, caption=Konstanta dalam constants.py]
+# Ambang Eye Aspect Ratio untuk deteksi kedipan
+EAR_THRESHOLD = 0.21
+
+# Konfigurasi Kalibrasi Dinamis EAR
+EAR_DYNAMIC_ENABLED = True
+EAR_DYNAMIC_SAMPLES = 30
+EAR_DYNAMIC_FACTOR = 0.78
+EAR_MIN_THRESHOLD = 0.17
+EAR_HYSTERESIS = 0.02
+
+# State machine aplikasi
+STATE_MENU = 2
+STATE_CAPTURE = 0
+STATE_PLAYING = 1
+
+# Countdown capture
+CAPTURE_COUNTDOWN = 3
+
+# Indeks landmark mata MediaPipe
+LEFT_EYE_INDICES = [362, 385, 387, 263, 373, 380]
+RIGHT_EYE_INDICES = [33, 160, 158, 133, 153, 144]
+
+# Urutan bagian wajah
+FACE_PART_SEQUENCE = [
+    "left_eyebrow", "right_eyebrow",
+    "left_eye", "right_eye",
+    "nose", "mouth"
+]
+\end{lstlisting}
+
+\textbf{Penjelasan Parameter Penting:}
+\begin{itemize}
+    \item \textbf{EAR\_THRESHOLD (0.21):} Nilai ambang batas Eye Aspect Ratio. Ketika EAR turun di bawah nilai ini, sistem mendeteksi mata tertutup (kedipan).
+    
+    \item \textbf{EAR\_DYNAMIC\_ENABLED:} Mengaktifkan kalibrasi otomatis threshold EAR berdasarkan kondisi mata terbuka pengguna. Sistem mengumpulkan sampel EAR saat countdown dan menghitung threshold optimal.
+    
+    \item \textbf{EAR\_HYSTERESIS (0.02):} Jarak aman antara threshold tutup dan buka mata untuk mencegah flicker/kedipan ganda karena noise.
+    
+    \item \textbf{State Machine:} Aplikasi menggunakan tiga state: MENU (tampilan awal), CAPTURE (mengambil foto wajah), dan PLAYING (mode permainan aktif).
+    
+    \item \textbf{Landmark Indices:} Indeks spesifik dari 468 landmark MediaPipe Face Mesh yang digunakan untuk menghitung EAR pada mata kiri dan kanan.
+\end{itemize}
+
+\subsection{File face\_processing.py}
+File ini merupakan inti dari pemrosesan visual, menangani deteksi landmark, perhitungan EAR, masking wajah, dan cropping bagian wajah.
+
+\subsubsection{Fungsi calculate\_eye\_aspect\_ratio}
+\begin{lstlisting}[language=Python, caption=Perhitungan Eye Aspect Ratio]
+def calculate_eye_aspect_ratio(
+    landmarks: List[List[float]], 
+    eye_indices: Iterable[int]
+) -> float:
+    idx = list(eye_indices)
+    p = [np.array(landmarks[i], dtype=np.float32) 
+         for i in idx]
+    
+    v1 = np.linalg.norm(p[1] - p[5])
+    v2 = np.linalg.norm(p[2] - p[4])
+    h = np.linalg.norm(p[0] - p[3])
+    
+    if h == 0.0:
+        return 0.0
+    return (v1 + v2) / (2.0 * h)
+\end{lstlisting}
+
+\textbf{Penjelasan Algoritma:}
+EAR dihitung menggunakan rumus: $EAR = \frac{||p_2 - p_6|| + ||p_3 - p_5||}{2 \times ||p_1 - p_4||}$
+
+Di mana:
+\begin{itemize}
+    \item $p_1, p_4$ = sudut kiri dan kanan mata (jarak horizontal)
+    \item $p_2, p_3, p_5, p_6$ = titik kelopak atas dan bawah (jarak vertikal)
+    \item Ketika mata terbuka, jarak vertikal besar → EAR tinggi
+    \item Ketika mata tertutup, jarak vertikal kecil → EAR rendah
+\end{itemize}
+
+\subsubsection{Fungsi apply\_face\_mask}
+\begin{lstlisting}[language=Python, caption=Masking Area Wajah]
+def apply_face_mask(
+    frame: np.ndarray,
+    landmarks: List[List[float]],
+    frame_width: int,
+    frame_height: int
+) -> np.ndarray:
+    # Estimasi warna kulit dari pipi
+    skin_color = _sample_skin_color(
+        frame, landmarks, frame_width, frame_height
+    )
+    
+    # Area yang akan di-mask
+    masked_areas = [
+        # Mata kiri, mata kanan, hidung, alis
+    ]
+    
+    # Tutup setiap area dengan warna kulit
+    for area_indices in masked_areas:
+        pts = _px_points(landmarks, area_indices, 
+                        frame_width, frame_height)
+        hull = cv2.convexHull(pts)
+        cv2.fillPoly(frame, [hull], skin_color)
+    
+    return frame
+\end{lstlisting}
+
+\textbf{Penjelasan Proses:}
+\begin{itemize}
+    \item \textbf{Sampling Warna Kulit:} Mengambil sampel warna dari beberapa titik pipi, dahi, dan dagu, kemudian menghitung median BGR untuk mendapat warna kulit yang robust terhadap pencahayaan.
+    
+    \item \textbf{Convex Hull Masking:} Menggunakan convex hull untuk membuat polygon yang menutupi area mata, hidung, dan alis dengan warna kulit estimasi.
+    
+    \item \textbf{Feathering:} Gaussian blur diterapkan pada mask untuk membuat transisi tepi yang halus dan natural.
+\end{itemize}
+
+\subsubsection{Fungsi crop\_face\_part}
+\begin{lstlisting}[language=Python, caption=Crop Bagian Wajah]
+def crop_face_part(
+    frame: np.ndarray,
+    landmarks: List[List[float]],
+    frame_width: int, frame_height: int,
+    part_type: str,
+    mask_style: str = "polygon",
+    with_alpha: bool = False
+) -> Optional[FacePartData]:
+    # Dapatkan indeks landmark sesuai part_type
+    indices = indices_map.get(part_type)
+    points = _px_points(landmarks, indices, 
+                       frame_width, frame_height)
+    
+    # Buat convex hull
+    hull = cv2.convexHull(points)
+    x, y, w, h = cv2.boundingRect(hull)
+    
+    # Crop ROI dengan padding
+    padding = 25
+    roi = frame[y-padding:y+h+padding, 
+                x-padding:x+w+padding]
+    
+    # Buat mask polygon
+    mask = np.zeros((h, w), dtype=np.uint8)
+    cv2.fillPoly(mask, [hull_local], 255)
+    
+    # Apply alpha channel
+    bgra = cv2.cvtColor(roi, cv2.COLOR_BGR2BGRA)
+    bgra[:, :, 3] = mask
+    
+    return FacePartData(image=bgra, center=center, ...)
+\end{lstlisting}
+
+\textbf{Penjelasan Teknik:}
+\begin{itemize}
+    \item \textbf{Polygon Masking:} Menggunakan convex hull dari landmark untuk membuat bentuk mask yang presisi mengikuti kontur bagian wajah.
+    
+    \item \textbf{Alpha Channel:} Menambahkan channel transparansi agar bagian wajah dapat di-blend dengan smooth pada background.
+    
+    \item \textbf{Anchor System:} Menyimpan data anchor (dua titik referensi) untuk transformasi skala dan rotasi saat tracking wajah.
+\end{itemize}
+
+\subsection{File falling\_face\_part.py}
+File ini mendefinisikan class untuk objek bagian wajah yang jatuh dan tracking-nya terhadap wajah pengguna.
+
+\begin{lstlisting}[language=Python, caption=Class FallingFacePart]
+class FallingFacePart:
+    def __init__(self, part_data: FacePartData, 
+                 part_type: str, screen_width: int, 
+                 screen_height: int, spawn_x: int,
+                 fall_speed: float = 10.0):
+        self.part_data = part_data
+        self.x = float(spawn_x)
+        self.y = -50.0  # Mulai dari atas
+        self.is_falling = True
+        self.current_scale = 1.0
+        self.original_image = part_data.image.copy()
+    
+    def update(self) -> None:
+        if self.is_falling:
+            self.y += self.fall_speed
+    
+    def stop(self, target_center: Tuple[int, int]) -> None:
+        self.x = float(target_center[0])
+        self.y = float(target_center[1])
+        self.is_falling = False
+        self.part_data.center = target_center
+    
+    def update_position_from_landmarks(
+        self, landmarks, frame_width, frame_height
+    ):
+        if self.is_falling:
+            return
+        result = compute_aligned_center(
+            self.part_data, landmarks, 
+            frame_width, frame_height
+        )
+        if result:
+            new_center, scale, _, _ = result
+            self.x = float(new_center[0])
+            self.y = float(new_center[1])
+            self.apply_scale(scale)
+\end{lstlisting}
+
+\textbf{Penjelasan Method Penting:}
+\begin{itemize}
+    \item \textbf{update():} Memperbarui posisi Y objek saat jatuh dengan menambahkan fall\_speed setiap frame.
+    
+    \item \textbf{stop():} Menghentikan animasi jatuh dan menetapkan posisi final objek saat kedipan terdeteksi.
+    
+    \item \textbf{update\_position\_from\_landmarks():} Setelah objek ditempel, method ini melakukan tracking wajah dengan menghitung transformasi anchor (skala dan rotasi) berdasarkan pergerakan landmark wajah.
+    
+    \item \textbf{apply\_scale():} Mengubah ukuran gambar bagian wajah secara dinamis mengikuti jarak wajah ke kamera, menggunakan interpolasi linear untuk hasil smooth.
+\end{itemize}
+
+\subsection{File game\_controller.py}
+File terbesar dan paling kompleks, mengatur seluruh game loop, state machine, dan integrasi semua komponen.
+
+\subsubsection{Class SVGImageLoader}
+\begin{lstlisting}[language=Python, caption=Loader Asset Image]
+class SVGImageLoader:
+    def __init__(self):
+        self._cache: Dict[str, Optional[np.ndarray]] = {}
+        self.assets_dir = Path(__file__).parent / "Assets"
+    
+    def load_svg_as_png(self, filename: str, 
+                        width: int, height: int):
+        cache_key = f"{filename}_{width}_{height}"
+        if cache_key in self._cache:
+            return self._cache[cache_key]
         
+        png_path = self.assets_dir / filename
+        img = cv2.imread(str(png_path), 
+                        cv2.IMREAD_UNCHANGED)
+        if img is not None:
+            img = cv2.resize(img, (width, height))
+            self._cache[cache_key] = img
+        return img
+\end{lstlisting}
+
+\textbf{Penjelasan:}
+Loader ini mengimplementasikan caching pattern untuk menghindari loading berulang file image yang sama, meningkatkan performa aplikasi.
+
+\subsubsection{State Machine Implementation}
+\begin{lstlisting}[language=Python, caption=Pengelolaan State]
+def run(self) -> None:
+    while capture.isOpened():
+        frame_available, frame = capture.read()
+        frame = cv2.flip(frame, 1)
+        
+        # Proses berdasarkan state
+        if self.current_state == STATE_MENU:
+            self._process_menu_state(display_frame, ...)
+        elif self.current_state == STATE_CAPTURE:
+            self._process_capture_state(frame, results, ...)
+        else:  # STATE_PLAYING
+            self._process_play_state(frame, results, ...)
+        
+        cv2.imshow("FaceFit Blink Challenge", display_frame)
+        key = cv2.waitKey(1) & 0xFF
+        if key == ord("q"):
+            break
+\end{lstlisting}
+
+\textbf{State Flow:}
+\begin{enumerate}
+    \item \textbf{STATE\_MENU:} Menampilkan menu dengan tombol START, background gradien, dan instruksi.
+    
+    \item \textbf{STATE\_CAPTURE:} Countdown 3 detik sambil mengumpulkan sampel EAR untuk kalibrasi threshold dinamis, lalu capture bagian wajah.
+    
+    \item \textbf{STATE\_PLAYING:} Mode permainan aktif dengan deteksi kedipan dan penempelan objek.
+\end{enumerate}
+
+\subsubsection{Deteksi Kedipan dengan Hysteresis}
+\begin{lstlisting}[language=Python, caption=Deteksi Kedipan Anti-Flicker]
+avg_ear = calculate_average_ear(landmarks)
+threshold = self._ear_threshold
+close_level = threshold
+open_level = threshold + EAR_HYSTERESIS
+
+if not self._ear_state_closed:
+    if avg_ear < close_level:
+        self._ear_state_closed = True
+        blink_display = True
+        if not self._blink_active:
+            self._blink_active = True
+            self.blink_count += 1
+            blink_event = True
+else:
+    if avg_ear > open_level:
+        self._ear_state_closed = False
+        self._blink_active = False
+    else:
+        blink_display = True
+\end{lstlisting}
+
+\textbf{Penjelasan Hysteresis:}
+Sistem menggunakan dua threshold berbeda untuk tutup (close\_level) dan buka (open\_level) mata. Ini mencegah kedipan ganda karena nilai EAR yang berfluktuasi di sekitar threshold tunggal. Mata dianggap menutup ketika EAR < close\_level, dan baru dianggap membuka kembali ketika EAR > open\_level.
+
+\subsubsection{Kalibrasi EAR Dinamis}
+\begin{lstlisting}[language=Python, caption=Kalibrasi Threshold Otomatis]
+# Kumpulkan sampel saat countdown
+if EAR_DYNAMIC_ENABLED and results:
+    ear_sample = calculate_average_ear(landmarks)
+    if len(self._ear_samples) < EAR_DYNAMIC_SAMPLES:
+        self._ear_samples.append(ear_sample)
+
+# Setelah countdown, kalibrasi threshold
+if EAR_DYNAMIC_ENABLED and self._ear_samples:
+    baseline = float(np.median(self._ear_samples))
+    calibrated = max(EAR_MIN_THRESHOLD, 
+                    baseline * EAR_DYNAMIC_FACTOR)
+    self._ear_threshold = calibrated
+\end{lstlisting}
+
+\textbf{Keunggulan Kalibrasi Dinamis:}
+\begin{itemize}
+    \item Adaptif terhadap variasi bentuk mata antar individu
+    \item Menyesuaikan dengan kondisi pencahayaan
+    \item Menggunakan median untuk robust terhadap outlier
+    \item Memiliki batas minimum untuk mencegah threshold terlalu rendah
+\end{itemize}
+
+\subsubsection{Audio System}
+\begin{lstlisting}[language=Python, caption=Background Music]
+def _init_audio(self) -> None:
+    pygame.mixer.init(frequency=44100, size=-16, 
+                     channels=2, buffer=512)
+    audio_path = Path(__file__).parent / "Assets" / 
+                "Cartoon Bounce.mp3"
+    if audio_path.exists():
+        pygame.mixer.music.load(str(audio_path))
+        self._audio_loaded = True
+
+def _play_background_music(self) -> None:
+    if self._audio_loaded:
+        pygame.mixer.music.play(-1)  # Loop infinite
+\end{lstlisting}
+
+\textbf{Penjelasan:}
+Pygame mixer digunakan untuk memutar background music secara loop. Parameter -1 pada play() membuat music berulang tanpa henti hingga di-stop.
+
+\subsection{File requirements.txt}
+\begin{lstlisting}[caption=Dependencies Python]
+mediapipe==0.10.21
+opencv-python==4.10.0.84
+numpy==1.26.4
+protobuf==4.25.3
+pygame==2.6.1
+\end{lstlisting}
+
+\textbf{Penjelasan Dependencies:}
+\begin{itemize}
+    \item \textbf{mediapipe:} Library Google untuk deteksi wajah dan 468 landmark presisi tinggi.
+    
+    \item \textbf{opencv-python:} Library computer vision untuk akses kamera, manipulasi gambar, dan rendering.
+    
+    \item \textbf{numpy:} Komputasi numerik untuk operasi array dan transformasi geometri.
+    
+    \item \textbf{protobuf:} Di-pin ke versi 4.25.3 untuk menghindari konflik dengan MediaPipe yang tidak support protobuf 5.x.
+    
+    \item \textbf{pygame:} Audio playback untuk background music.
+\end{itemize}
+
+\section{Integrasi Antar File}
+
+\subsection{Flow Eksekusi Lengkap}
+\begin{enumerate}
+    \item \textbf{main.py} mendeteksi kamera dan membuat instance FaceFilterGame
+    
+    \item \textbf{game\_controller.py} menginisialisasi:
+    \begin{itemize}
+        \item MediaPipe Face Mesh
+        \item SVGImageLoader untuk asset UI
+        \item Pygame mixer untuk audio
+        \item State machine dimulai di STATE\_MENU
+    \end{itemize}
+    
+    \item \textbf{State MENU:} User klik tombol START
+    
+    \item \textbf{State CAPTURE:}
+    \begin{itemize}
+        \item Countdown 3 detik
+        \item face\_processing.calculate\_average\_ear() mengumpulkan sampel
+        \item Kalibrasi threshold EAR
+        \item face\_processing.crop\_face\_part() untuk setiap bagian wajah
+        \item Simpan hasil crop ke dictionary face\_parts
+    \end{itemize}
+    
+    \item \textbf{State PLAYING:}
+    \begin{itemize}
+        \item Spawn FallingFacePart dari queue
+        \item Update posisi objek jatuh setiap frame
+        \item Deteksi kedipan dengan hysteresis
+        \item Saat kedipan: stop objek, apply scale, reanchor
+        \item Tracking objek yang sudah ditempel mengikuti wajah
+        \item Repeat untuk bagian wajah berikutnya
+    \end{itemize}
+    
+    \item \textbf{Selesai:} Semua bagian wajah terpasang, tampilkan pesan selesai
+\end{enumerate}
+
+\subsection{Data Flow Diagram}
+
+\begin{figure}[!ht]
+    \centering
+    \includegraphics[width=1\textwidth]{Figure/diagrammulmed.png}
+    \caption{Diagram Alur Data FaceFit Blink Challenge}
+    \label{fig:diagram}
+\end{figure}
+
+\subsection{Key Design Patterns}
+\begin{itemize}
+    \item \textbf{State Pattern:} Tiga state (MENU, CAPTURE, PLAYING) dengan behavior berbeda per state
+    
+    \item \textbf{Caching Pattern:} SVGImageLoader cache image yang sudah di-load
+    
+    \item \textbf{Observer Pattern:} Face tracking observer untuk update posisi objek terpasang
+    
+    \item \textbf{Factory Pattern:} Spawn objek FallingFacePart dari FacePartData
+\end{itemize}    
     
 \section{Hasil Analisis}
 \subsection{Program Utama}
@@ -406,8 +808,6 @@ pip install -r requirements.txt
        python main.py\end{lstlisting}
 
 \subsection{Jalankan Program}
-    \begin{lstlisting}
-        python main.py\end{lstlisting}
     File main.py akan menjalankan program secara real-time
     Rekan tombol "Start" untuk memulai program
     
@@ -448,13 +848,13 @@ pip install -r requirements.txt
 \end{figure}
 
 \begin{itemize}
-     \item layar akan menampilkan keterangan jika 'S' untuk memulai, dan Spasi untuk Pause.
+    \item layar akan menampilkan keterangan jika 'Start' untuk memulai.
     
-    \item game pada permainan akan mendeteksi suara jika terlalu keras maka lampu merah menyala, mario akan langsung tereliminasi.
+    \item Game akan mendeteksi kondisi mata pemain ketika terbuka menggunakan EAR.
+    
+    \item Ketika game dimulai permainan akan mendeteksi kedipan mata jika berkedip bagian wajah yang jatuh akan berhenti dan akan diberi anchor agar mengikuti posisi kepala.
 
-    \item sebaliknya saat lampu hijau menyala dan suara cukup kuat, maka mario akan bergerak maju.
-
-    \item stelah pemain menyelesaikan game, akan muncul pilihan "play Again" atau "Exit".
+    \item stelah pemain menyelesaikan game, akan muncul pilihan Tekan "R" untuk reset.
 \end{itemize}
     
 \end{document}
