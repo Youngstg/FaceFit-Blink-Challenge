@@ -762,31 +762,57 @@ Program menampilkan:
     Wajah pengguna terlihat sebagai latar belakang permainan.
 
     \item \textbf{Objek bagian wajah yang jatuh} \\
-    Seperti mata, hidung, dan mulut.
+    Seperti mata, hidung, alis, dan mulut yang jatuh dari atas layar.
 
     \item \textbf{Penempelan objek saat kedipan terdeteksi} \\
     Ketika pemain berkedip tepat waktu, objek otomatis menempel pada landmark yang sesuai.
 
-    \item \textbf{Indikator Debug (Opsional)} \\
-    Berupa titik landmark wajah untuk memudahkan pengembangan.
+    \item \textbf{Indikator Status EAR} \\
+    Menampilkan nilai Eye Aspect Ratio dan threshold kalibrasi untuk monitoring deteksi kedipan.
 
-    \item \textbf{Skor / Progress Level (Opsional)} \\
-    Menunjukkan bagian wajah mana yang sudah ditempelkan.
+    \item \textbf{Jumlah Kedipan} \\
+    Counter yang menunjukkan berapa kali pemain berhasil mengedipkan mata.
+
+    \item \textbf{Tracking Objek Terpasang} \\
+    Bagian wajah yang sudah ditempel akan mengikuti pergerakan kepala secara real-time.
+
+    \item \textbf{Background Music} \\
+    Audio loop yang meningkatkan pengalaman bermain.
+
+    \item \textbf{Tampilan Menu Interaktif} \\
+    Tombol START dengan hover effect dan instruksi permainan.
+
+    \item \textbf{Countdown Capture} \\
+    Hitungan mundur 3 detik sebelum capture wajah dimulai.
+
+    \item \textbf{Pesan Selesai} \\
+    Notifikasi ketika semua bagian wajah berhasil ditempelkan dengan opsi restart.
 \end{enumerate}
 
 \subsection{Analisis Implementasi}
 Hasil implementasi menunjukkan bahwa:
 
 \begin{enumerate}
-    \item \textbf{Sistem mampu memproses input real-time dengan stabil.}
+    \item \textbf{Sistem mampu memproses input real-time dengan stabil.} \\
 
-    \item \textbf{Deteksi kedipan bekerja dengan cepat dan tingkat akurasi baik.}
-
-    \item \textbf{Integrasi antara deteksi wajah dan logika permainan berjalan sinkron.}
-
-    \item \textbf{Proses rendering tidak mengalami penurunan FPS yang berarti.}
-
-    \item \textbf{Pengguna dapat berinteraksi secara natural tanpa perangkat tambahan.}
+    \item \textbf{Deteksi kedipan bekerja dengan cepat dan tingkat akurasi baik.} \\
+ 
+    \item \textbf{Integrasi antara deteksi wajah dan logika permainan berjalan sinkron.} \\
+ 
+    \item \textbf{Proses rendering tidak mengalami penurunan FPS yang berarti.} \\
+ 
+    \item \textbf{Pengguna dapat berinteraksi secara natural tanpa perangkat tambahan.} \\
+ 
+    \item \textbf{Kalibrasi EAR dinamis meningkatkan adaptabilitas sistem.} \\
+ 
+    \item \textbf{Tracking objek terpasang mengikuti pergerakan wajah dengan presisi.} \\
+ 
+    \item \textbf{Masking warna kulit menghasilkan tampilan natural.} \\
+ 
+    \item \textbf{Arsitektur modular memudahkan pengembangan lanjutan.} \\
+  
+    \item \textbf{Caching asset meningkatkan performa loading.} \\
+ 
 \end{enumerate}
      
 \section{Implementasi Program}
