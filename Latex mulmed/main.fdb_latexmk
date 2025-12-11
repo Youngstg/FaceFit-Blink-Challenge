@@ -1,5 +1,5 @@
 # Fdb version 4
-["pdflatex"] 1765385061.1991 "d:/Se/FaceFit-Blink-Challenge/Latex mulmed/main.tex" "main.pdf" "main" 1765385064.23168 0
+["pdflatex"] 1765461439.2126 "d:/Se/FaceFit-Blink-Challenge/Latex mulmed/main.tex" "main.pdf" "main" 1765461443.41814 0
   "C:/Users/ASUS/AppData/Local/MiKTeX/fonts/map/pdftex/pdftex.map" 1763560320 166688 8a9152e3e2857c01930626950133734f ""
   "C:/Users/ASUS/AppData/Local/MiKTeX/fonts/pk/ljfour/jknappen/ec/dpi600/ecbx1095.pk" 1760634655 28976 59e1e15ac8723a2ba41fcd3093d3adae ""
   "C:/Users/ASUS/AppData/Local/MiKTeX/fonts/pk/ljfour/jknappen/ec/dpi600/ecbx1200.pk" 1760635118 31952 897031beeed40abd64d75eebf1225b11 ""
@@ -224,10 +224,10 @@
   "Figure/ifitera-header.png" 1765298719 105262 7fe1bcaf31c1fe943ce3e952b4c15ef1 ""
   "Figure/konfigurasiEAR.png" 1765381255 726981 cfd7c5bcb70121eb1c59ff0314caacb3 ""
   "Figure/tampilanawal.png" 1765381180 213239 2bda3d92fc41338b396124fe5dbbbb3d ""
-  "d:/Se/FaceFit-Blink-Challenge/Latex mulmed/main.tex" 1765385060 35466 e07e73c065b4f5e4c8669fc5fdd853f1 ""
-  "main.aux" 1765385063 8273 4f5e7d54fee551461300ca09a523ece4 "pdflatex"
-  "main.out" 1765385063 5620 64502230f9489b523a49fff2195fd8db "pdflatex"
-  "main.tex" 1765385060 35466 e07e73c065b4f5e4c8669fc5fdd853f1 ""
+  "d:/Se/FaceFit-Blink-Challenge/Latex mulmed/main.tex" 1765461419 36526 74ba0430611810e32e5aadb97c216699 ""
+  "main.aux" 1765461442 8273 8e9b3f8f9c68c061f6bd6df619dc895d "pdflatex"
+  "main.out" 1765461442 5620 64502230f9489b523a49fff2195fd8db "pdflatex"
+  "main.tex" 1765461419 36526 74ba0430611810e32e5aadb97c216699 ""
   (generated)
   "main.aux"
   "main.log"
