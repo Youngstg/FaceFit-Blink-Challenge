@@ -1,5 +1,5 @@
 # Fdb version 4
-["pdflatex"] 1765461439.2126 "d:/Se/FaceFit-Blink-Challenge/Latex mulmed/main.tex" "main.pdf" "main" 1765461443.41814 0
+["pdflatex"] 1765473072.50228 "d:/Se/FaceFit-Blink-Challenge/Latex mulmed/main.tex" "main.pdf" "main" 1765473076.87749 0
   "C:/Users/ASUS/AppData/Local/MiKTeX/fonts/map/pdftex/pdftex.map" 1763560320 166688 8a9152e3e2857c01930626950133734f ""
   "C:/Users/ASUS/AppData/Local/MiKTeX/fonts/pk/ljfour/jknappen/ec/dpi600/ecbx1095.pk" 1760634655 28976 59e1e15ac8723a2ba41fcd3093d3adae ""
   "C:/Users/ASUS/AppData/Local/MiKTeX/fonts/pk/ljfour/jknappen/ec/dpi600/ecbx1200.pk" 1760635118 31952 897031beeed40abd64d75eebf1225b11 ""
@@ -220,14 +220,15 @@
   "Figure/cropandmasking.png" 1765381296 721701 2e905fefdcf4337b5b59cb01a42275c4 ""
   "Figure/deteksiblindgnEAR.png" 1765381363 726841 db690a71edbf7a3dd35739a8cac1a480 ""
   "Figure/diagrammulmed.png" 1765383129 5953 b1786ae63d67cb5a0b1c5ebb81ba5b1f ""
+  "Figure/diagramproses.png" 1765465373 15252 0a45aafbecc263425927116e8536e570 ""
   "Figure/gameselesai.png" 1765381415 752975 614e846f3a10944a79401bad675b143e ""
   "Figure/ifitera-header.png" 1765298719 105262 7fe1bcaf31c1fe943ce3e952b4c15ef1 ""
   "Figure/konfigurasiEAR.png" 1765381255 726981 cfd7c5bcb70121eb1c59ff0314caacb3 ""
   "Figure/tampilanawal.png" 1765381180 213239 2bda3d92fc41338b396124fe5dbbbb3d ""
-  "d:/Se/FaceFit-Blink-Challenge/Latex mulmed/main.tex" 1765461419 36526 74ba0430611810e32e5aadb97c216699 ""
-  "main.aux" 1765461442 8273 8e9b3f8f9c68c061f6bd6df619dc895d "pdflatex"
-  "main.out" 1765461442 5620 64502230f9489b523a49fff2195fd8db "pdflatex"
-  "main.tex" 1765461419 36526 74ba0430611810e32e5aadb97c216699 ""
+  "d:/Se/FaceFit-Blink-Challenge/Latex mulmed/main.tex" 1765473066 37767 b70587cd40e5af689a08169a4dcccfb9 ""
+  "main.aux" 1765473076 8360 d7fc003ab5e18b11542f6510030de3ed "pdflatex"
+  "main.out" 1765473076 5418 a73d44ab0dec429c8e406f02266f2a63 "pdflatex"
+  "main.tex" 1765473066 37767 b70587cd40e5af689a08169a4dcccfb9 ""
   (generated)
   "main.aux"
   "main.log"
